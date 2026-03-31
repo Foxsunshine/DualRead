@@ -1,0 +1,211 @@
+/* 双语翻译插件样式 */
+
+/* 浮动翻译气泡 */
+#bilingual-tooltip {
+  position: fixed;
+  z-index: 2147483647;
+  max-width: 380px;
+  min-width: 200px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+  animation: bilingual-fadein 0.18s ease;
+  pointer-events: auto;
+}
+
+@keyframes bilingual-fadein {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 顶部标题栏 */
+#bilingual-tooltip .bt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 6px;
+  background: linear-gradient(135deg, #4285F4 0%, #34A853 100%);
+  color: white;
+}
+
+#bilingual-tooltip .bt-logo {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  opacity: 0.95;
+}
+
+#bilingual-tooltip .bt-lang-badge {
+  font-size: 11px;
+  background: rgba(255,255,255,0.25);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+#bilingual-tooltip .bt-engine-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+}
+#bilingual-tooltip .bt-engine-badge.google {
+  background: rgba(66,133,244,0.3);
+  color: #e8f0fe;
+}
+#bilingual-tooltip .bt-engine-badge.claude {
+  background: rgba(193,125,60,0.4);
+  color: #fdf3e7;
+}
+
+#bilingual-tooltip .bt-close {
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  opacity: 0.8;
+  transition: opacity 0.15s, background 0.15s;
+}
+#bilingual-tooltip .bt-close:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.25);
+}
+
+/* 内容区 */
+#bilingual-tooltip .bt-body {
+  padding: 10px 14px 12px;
+}
+
+/* 原文 */
+#bilingual-tooltip .bt-original {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.55;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e0e0e0;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+#bilingual-tooltip .bt-original-label {
+  font-size: 10px;
+  color: #aaa;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+/* 译文 */
+#bilingual-tooltip .bt-translated {
+  color: #1a1a1a;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+#bilingual-tooltip .bt-translated-label {
+  font-size: 10px;
+  color: #4285F4;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+/* 加载状态 */
+#bilingual-tooltip .bt-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #888;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.bt-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #4285F4;
+  border-radius: 50%;
+  animation: bt-spin 0.7s linear infinite;
+}
+
+@keyframes bt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 底部操作栏 */
+#bilingual-tooltip .bt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+#bilingual-tooltip .bt-btn {
+  font-size: 11px;
+  color: #4285F4;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+#bilingual-tooltip .bt-btn:hover {
+  background: #f0f4ff;
+}
+
+/* 页面内双语对照注入模式 */
+.bilingual-block {
+  display: inline !important;
+}
+
+.bilingual-translation-inline {
+  display: inline-block;
+  background: linear-gradient(to right, #e8f0fe, #f0fdf4);
+  color: #1a73e8;
+  font-size: 0.85em;
+  font-style: normal;
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-left: 3px;
+  line-height: 1.4;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  border-bottom: 1px solid #c5d9f5;
+  cursor: default;
+}
+
+/* 全页翻译 - 段落双语模式 */
+.bt-paragraph-wrapper {
+  position: relative;
+}
+
+.bt-paragraph-translation {
+  display: block;
+  color: #1a73e8;
+  font-size: 0.92em;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(to right, #f8fbff, #f0fdf4);
+  border-left: 3px solid #4285F4;
+  padding: 4px 8px;
+  margin: 4px 0 8px 0;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.6;
+  animation: bilingual-fadein 0.3s ease;
+}
