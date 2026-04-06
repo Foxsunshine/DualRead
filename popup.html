@@ -6,7 +6,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { width: 320px; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #fff; color: #1a1a1a; }
-    .header { padding: 14px 16px 12px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; display: flex; align-items: center; gap: 10px; }
+    .header { padding: 14px 16px 12px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; display: flex; align-items: center; gap: 10px; position: relative; }
     .header-icon { font-size: 22px; }
     .header-text h1 { font-size: 15px; font-weight: 700; }
     .header-text p { font-size: 11px; opacity: 0.6; margin-top: 2px; }
@@ -18,7 +18,7 @@
     .engine-btn .e-name { font-weight: 600; font-size: 13px; display: block; }
     .engine-btn .e-desc { font-size: 10px; opacity: 0.7; }
     .engine-btn.active-google { border-color: #4285F4; background: #e8f0fe; color: #1967d2; }
-    .engine-btn.active-claude { border-color: #c17d3c; background: #fdf3e7; color: #8b5a1a; }
+    .engine-btn.active-gemini { border-color: #1e6b3c; background: #e6f4ea; color: #1e6b3c; }
     .apikey-wrap { margin-top: 10px; animation: fadeIn 0.2s ease; }
     @keyframes fadeIn { from { opacity:0; transform: translateY(-4px); } to { opacity:1; transform: none; } }
     .apikey-row { display: flex; gap: 6px; align-items: center; }
@@ -47,6 +47,14 @@
     .tip { font-size: 11px; color: #aaa; line-height: 1.5; margin-top: 8px; }
     .tip strong { color: #666; }
     .hidden { display: none !important; }
+    /* Toggle switch */
+    .toggle-wrap { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; }
+    .toggle-label { font-size: 10px; opacity: 0.7; }
+    .toggle { position: relative; width: 36px; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; cursor: pointer; transition: background 0.2s; border: none; padding: 0; }
+    .toggle::after { content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; background: rgba(255,255,255,0.6); border-radius: 50%; transition: all 0.2s; }
+    .toggle.on { background: #34A853; }
+    .toggle.on::after { left: 18px; background: white; }
+    body.ext-off .section { opacity: 0.4; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -57,6 +65,10 @@
     <h1>双语对照翻译器</h1>
     <p>原文 + 译文同时显示，不破坏页面布局</p>
   </div>
+  <div class="toggle-wrap">
+    <span class="toggle-label" id="toggleLabel">OFF</span>
+    <button class="toggle" id="toggleBtn"></button>
+  </div>
 </div>
 
 <div class="section">
@@ -66,19 +78,19 @@
       <span class="e-name">🔵 Google</span>
       <span class="e-desc">免费 · 无需配置</span>
     </button>
-    <button class="engine-btn" id="eng-claude" data-engine="claude">
-      <span class="e-name">✦ Claude AI</span>
-      <span class="e-desc">更精准 · 需 API Key</span>
+    <button class="engine-btn" id="eng-gemini" data-engine="gemini">
+      <span class="e-name">✦ Gemini</span>
+      <span class="e-desc">免费大额度 · 需 Key</span>
     </button>
   </div>
-  <div class="apikey-wrap hidden" id="apikey-section">
+  <div class="apikey-wrap hidden" id="gemini-apikey-section">
     <div class="apikey-row">
-      <input class="apikey-input" id="apiKeyInput" type="password" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false" />
-      <button class="btn-save" id="saveKeyBtn">保存</button>
+      <input class="apikey-input" id="geminiKeyInput" type="password" placeholder="AIzaSy..." autocomplete="off" spellcheck="false" />
+      <button class="btn-save" id="saveGeminiKeyBtn">保存</button>
     </div>
-    <div class="apikey-status" id="keyStatus"></div>
+    <div class="apikey-status" id="geminiKeyStatus"></div>
     <div class="apikey-tip">
-      在 <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> 获取 API Key。Key 仅存储在本地浏览器，不会上传到任何服务器。
+      在 <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> 免费获取 Key（每天 1500 次请求免费）。Key 仅存储在本地，不上传任何服务器。
     </div>
   </div>
 </div>

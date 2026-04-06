@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "双语对照翻译器 Bilingual Translator",
+  "name": "DualRead - Bilingual Translator",
   "version": "1.0.0",
-  "description": "选中文字，原文+译文双语对照显示，不破坏页面布局",
+  "description": "Select text to see bilingual translation side-by-side. Supports Google Translate and Gemini AI. No page layout disruption.",
+  "homepage_url": "https://github.com/Foxsunshine/DualRead",
   "permissions": [
     "activeTab",
     "storage",
@@ -10,7 +11,7 @@
   ],
   "host_permissions": [
     "https://translate.googleapis.com/*",
-    "https://api.anthropic.com/*"
+    "https://generativelanguage.googleapis.com/*"
   ],
   "action": {
     "default_popup": "popup.html",

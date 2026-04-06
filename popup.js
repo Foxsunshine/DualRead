@@ -1,18 +1,30 @@
 // ===== Popup Script =====
 
-const langSelect    = document.getElementById('targetLang');
-const modeBtns      = document.querySelectorAll('.mode-btn');
-const engineBtns    = document.querySelectorAll('.engine-btn');
-const apikeySection = document.getElementById('apikey-section');
-const apiKeyInput   = document.getElementById('apiKeyInput');
-const saveKeyBtn    = document.getElementById('saveKeyBtn');
-const keyStatus     = document.getElementById('keyStatus');
-const statusEl      = document.getElementById('status');
+const langSelect        = document.getElementById('targetLang');
+const modeBtns          = document.querySelectorAll('.mode-btn');
+const engineBtns        = document.querySelectorAll('.engine-btn');
+const geminiApikeySection = document.getElementById('gemini-apikey-section');
+const geminiKeyInput      = document.getElementById('geminiKeyInput');
+const saveGeminiKeyBtn    = document.getElementById('saveGeminiKeyBtn');
+const geminiKeyStatus     = document.getElementById('geminiKeyStatus');
+const statusEl            = document.getElementById('status');
+const toggleBtn           = document.getElementById('toggleBtn');
+const toggleLabel         = document.getElementById('toggleLabel');
 
 let currentEngine = 'google';
+let enabled = false;
+
+function updateToggleUI(on) {
+  enabled = on;
+  toggleBtn.classList.toggle('on', on);
+  toggleLabel.textContent = on ? 'ON' : 'OFF';
+  document.body.classList.toggle('ext-off', !on);
+}
 
 // ---- 加载已保存设置 ----
-chrome.storage.sync.get(['targetLang', 'mode', 'engine', 'claudeApiKey'], (res) => {
+chrome.storage.sync.get(['targetLang', 'mode', 'engine', 'geminiApiKey', 'enabled'], (res) => {
+  updateToggleUI(res.enabled === true);
+
   if (res.targetLang) langSelect.value = res.targetLang;
 
   const mode = res.mode || 'tooltip';
@@ -21,11 +33,19 @@ chrome.storage.sync.get(['targetLang', 'mode', 'engine', 'claudeApiKey'], (res) 
   currentEngine = res.engine || 'google';
   updateEngineUI(currentEngine);
 
-  if (res.claudeApiKey) {
-    apiKeyInput.value = res.claudeApiKey;
-    keyStatus.textContent = '✓ API Key 已保存';
-    keyStatus.className = 'apikey-status ok';
+  if (res.geminiApiKey) {
+    geminiKeyInput.value = res.geminiApiKey;
+    geminiKeyStatus.textContent = '✓ API Key 已保存';
+    geminiKeyStatus.className = 'apikey-status ok';
   }
+});
+
+// ---- 开关切换 ----
+toggleBtn.addEventListener('click', () => {
+  const newState = !enabled;
+  chrome.storage.sync.set({ enabled: newState });
+  updateToggleUI(newState);
+  showStatus(newState ? '已启用 ✓' : '已关闭');
 });
 
 // ---- 引擎切换 ----
@@ -39,68 +59,58 @@ engineBtns.forEach(btn => {
 
 function updateEngineUI(engine) {
   engineBtns.forEach(btn => {
-    btn.classList.remove('active-google', 'active-claude');
+    btn.classList.remove('active-google', 'active-gemini');
     if (btn.dataset.engine === engine) {
-      btn.classList.add(engine === 'claude' ? 'active-claude' : 'active-google');
+      if (engine === 'gemini') btn.classList.add('active-gemini');
+      else btn.classList.add('active-google');
     }
   });
-  apikeySection.classList.toggle('hidden', engine !== 'claude');
+  geminiApikeySection.classList.toggle('hidden', engine !== 'gemini');
 }
 
-// ---- 保存并验证 API Key ----
-saveKeyBtn.addEventListener('click', async () => {
-  const key = apiKeyInput.value.trim();
+// ---- 保存并验证 Gemini API Key ----
+saveGeminiKeyBtn.addEventListener('click', async () => {
+  const key = geminiKeyInput.value.trim();
   if (!key) {
-    keyStatus.textContent = '请输入 API Key';
-    keyStatus.className = 'apikey-status err';
-    return;
-  }
-  if (!key.startsWith('sk-ant-')) {
-    keyStatus.textContent = '格式不对，Key 应以 sk-ant- 开头';
-    keyStatus.className = 'apikey-status err';
+    geminiKeyStatus.textContent = '请输入 API Key';
+    geminiKeyStatus.className = 'apikey-status err';
     return;
   }
 
-  keyStatus.textContent = '验证中...';
-  keyStatus.className = 'apikey-status';
+  geminiKeyStatus.textContent = '验证中...';
+  geminiKeyStatus.className = 'apikey-status';
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 10,
-        messages: [{ role: 'user', content: 'Hi' }]
-      })
-    });
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Hi' }] }] })
+      }
+    );
 
-    if (resp.ok || resp.status === 529) {
-      chrome.storage.sync.set({ claudeApiKey: key });
-      keyStatus.textContent = '✓ API Key 有效，已保存！';
-      keyStatus.className = 'apikey-status ok';
-    } else if (resp.status === 401) {
-      keyStatus.textContent = '✗ API Key 无效，请检查后重试';
-      keyStatus.className = 'apikey-status err';
+    if (resp.ok) {
+      chrome.storage.sync.set({ geminiApiKey: key });
+      geminiKeyStatus.textContent = '✓ API Key 有效，已保存！';
+      geminiKeyStatus.className = 'apikey-status ok';
+    } else if (resp.status === 400 || resp.status === 403) {
+      geminiKeyStatus.textContent = '✗ API Key 无效，请检查后重试';
+      geminiKeyStatus.className = 'apikey-status err';
     } else {
-      chrome.storage.sync.set({ claudeApiKey: key });
-      keyStatus.textContent = '已保存（无法验证，请确认 Key 正确）';
-      keyStatus.className = 'apikey-status';
+      chrome.storage.sync.set({ geminiApiKey: key });
+      geminiKeyStatus.textContent = '已保存（无法验证，请确认 Key 正确）';
+      geminiKeyStatus.className = 'apikey-status';
     }
   } catch (e) {
-    chrome.storage.sync.set({ claudeApiKey: key });
-    keyStatus.textContent = '已保存（网络异常，无法在线验证）';
-    keyStatus.className = 'apikey-status';
+    chrome.storage.sync.set({ geminiApiKey: key });
+    geminiKeyStatus.textContent = '已保存（网络异常，无法在线验证）';
+    geminiKeyStatus.className = 'apikey-status';
   }
 });
 
-apiKeyInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') saveKeyBtn.click();
+geminiKeyInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') saveGeminiKeyBtn.click();
 });
 
 // ---- 语言切换 ----
@@ -121,16 +131,6 @@ modeBtns.forEach(btn => {
 
 // ---- 翻译整页 ----
 document.getElementById('translatePageBtn').addEventListener('click', async () => {
-  if (currentEngine === 'claude') {
-    const res = await chrome.storage.sync.get(['claudeApiKey']);
-    if (!res.claudeApiKey) {
-      showStatus('⚠️ 请先填写并保存 Claude API Key', true);
-      apikeySection.classList.remove('hidden');
-      apiKeyInput.focus();
-      return;
-    }
-  }
-
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
 
@@ -138,7 +138,7 @@ document.getElementById('translatePageBtn').addEventListener('click', async () =
   chrome.tabs.sendMessage(tab.id, {
     action: 'translatePage',
     targetLang: langSelect.value
-  }, (res) => {
+  }, () => {
     if (chrome.runtime.lastError) {
       showStatus('⚠️ 无法在此页面使用', true);
     } else {

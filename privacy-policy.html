@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DualRead - Privacy Policy</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.7; }
+    h1 { font-size: 24px; border-bottom: 2px solid #4285F4; padding-bottom: 8px; }
+    h2 { font-size: 18px; margin-top: 28px; color: #1a1a2e; }
+    p, li { font-size: 15px; }
+    ul { padding-left: 20px; }
+    .updated { color: #888; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>DualRead - Privacy Policy</h1>
+  <p class="updated">Last updated: April 6, 2026</p>
+
+  <h2>Overview</h2>
+  <p>DualRead ("the Extension") is a browser extension that provides bilingual translation. We are committed to protecting your privacy. This policy explains what data we collect, how we use it, and your rights.</p>
+
+  <h2>Data Collection</h2>
+  <p>The Extension does <strong>not</strong> collect, store, or transmit any personal data to our servers. We do not have any servers.</p>
+
+  <h2>Data Stored Locally</h2>
+  <p>The following data is stored locally on your device using Chrome's <code>chrome.storage.sync</code> API:</p>
+  <ul>
+    <li><strong>User preferences</strong>: target language, translation mode, selected engine</li>
+    <li><strong>API keys</strong>: Gemini API key (if provided by you)</li>
+  </ul>
+  <p>This data syncs across your Chrome browsers if you are signed into Chrome. It is never sent to any server other than Google's Chrome sync infrastructure.</p>
+
+  <h2>Third-Party Services</h2>
+  <p>When you use the Extension to translate text, the selected text is sent to one of the following services depending on your chosen engine:</p>
+  <ul>
+    <li><strong>Google Translate</strong> (<code>translate.googleapis.com</code>) — governed by <a href="https://policies.google.com/privacy">Google's Privacy Policy</a></li>
+    <li><strong>Google Gemini API</strong> (<code>generativelanguage.googleapis.com</code>) — governed by <a href="https://ai.google.dev/gemini-api/terms">Google's Gemini API Terms</a></li>
+  </ul>
+  <p>No data is sent to any other third party.</p>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><strong>activeTab</strong>: To read selected text and inject translations into the current page</li>
+    <li><strong>storage</strong>: To save your preferences and API keys locally</li>
+    <li><strong>contextMenus</strong>: To provide right-click translation options</li>
+    <li><strong>Host permissions</strong>: To communicate with Google Translate and Gemini APIs only</li>
+  </ul>
+
+  <h2>Data Security</h2>
+  <p>API keys are stored locally in your browser and are only transmitted to their respective API endpoints over HTTPS. We have no access to your API keys or any translated content.</p>
+
+  <h2>Children's Privacy</h2>
+  <p>The Extension is not directed at children under 13 and does not knowingly collect data from children.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>We may update this policy from time to time. Changes will be posted on this page with an updated date.</p>
+
+  <h2>Contact</h2>
+  <p>If you have questions about this privacy policy, please open an issue at <a href="https://github.com/Foxsunshine/DualRead/issues">github.com/Foxsunshine/DualRead/issues</a>.</p>
+</body>
+</html>

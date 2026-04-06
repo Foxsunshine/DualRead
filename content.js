@@ -4,33 +4,33 @@
   'use strict';
 
   let tooltip = null;
-  let currentSelection = null;
   let targetLang = 'zh-CN';
   let mode = 'tooltip'; // 'tooltip' | 'inline'
-  let engine = 'google'; // 'google' | 'claude'
-  let claudeApiKey = '';
+  let engine = 'google'; // 'google' | 'gemini'
+  let geminiApiKey = '';
+  let enabled = false;
   let hideTimer = null;
 
   // 加载用户设置
-  chrome.storage.sync.get(['targetLang', 'mode', 'engine', 'claudeApiKey'], (res) => {
+  chrome.storage.sync.get(['targetLang', 'mode', 'engine', 'geminiApiKey', 'enabled'], (res) => {
     if (res.targetLang) targetLang = res.targetLang;
     if (res.mode) mode = res.mode;
     if (res.engine) engine = res.engine;
-    if (res.claudeApiKey) claudeApiKey = res.claudeApiKey;
+    if (res.geminiApiKey) geminiApiKey = res.geminiApiKey;
+    enabled = res.enabled === true;
   });
 
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.targetLang) targetLang = changes.targetLang.newValue;
     if (changes.mode) mode = changes.mode.newValue;
     if (changes.engine) engine = changes.engine.newValue;
-    if (changes.claudeApiKey) claudeApiKey = changes.claudeApiKey.newValue;
+    if (changes.geminiApiKey) geminiApiKey = changes.geminiApiKey.newValue;
+    if (changes.enabled) enabled = changes.enabled.newValue === true;
   });
 
   // ---- 翻译引擎分发 ----
   async function translateText(text, target) {
-    if (engine === 'claude' && claudeApiKey) {
-      return translateWithClaude(text, target);
-    }
+    if (engine === 'gemini' && geminiApiKey) return translateWithGemini(text, target);
     return translateWithGoogle(text, target);
   }
 
@@ -45,44 +45,78 @@
     return { translated, detectedLang };
   }
 
-  // ---- Claude API 翻译 ----
-  async function translateWithClaude(text, target) {
-    const langMap = {
-      'zh-CN': '简体中文', 'zh-TW': '繁体中文', 'en': 'English',
-      'ja': '日本語', 'ko': '한국어', 'fr': 'Français',
-      'de': 'Deutsch', 'es': 'Español', 'pt': 'Português',
-      'ru': 'Русский', 'ar': 'العربية'
-    };
-    const targetLangName = langMap[target] || target;
+  // ---- Gemini 语言映射 ----
+  const geminiLangMap = {
+    'zh-CN': '简体中文', 'zh-TW': '繁体中文', 'en': 'English',
+    'ja': '日本語', 'ko': '한국어', 'fr': 'Français',
+    'de': 'Deutsch', 'es': 'Español', 'pt': 'Português',
+    'ru': 'Русский', 'ar': 'العربية'
+  };
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': claudeApiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [{
-          role: 'user',
-          content: `请将以下文本翻译成${targetLangName}。只输出译文，不要任何解释、前缀或额外内容：\n\n${text}`
-        }]
-      })
-    });
+  // ---- Gemini API 翻译（单条，429 时自动回退 Google）----
+  async function translateWithGemini(text, target) {
+    try {
+      const targetLangName = geminiLangMap[target] || target;
+      const data = await callGemini(`请将以下文本翻译成${targetLangName}。只输出译文，不要任何解释、前缀或额外内容：\n\n${text}`);
+      const translated = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      return { translated, detectedLang: 'auto' };
+    } catch (e) {
+      if (e.gemini429) return translateWithGoogle(text, target);
+      throw e;
+    }
+  }
+
+  // ---- Gemini API 批量翻译（多条合并为 1 次请求）----
+  async function translateBatchWithGemini(texts, target) {
+    const targetLangName = geminiLangMap[target] || target;
+    const numbered = texts.map((t, i) => `[${i + 1}] ${t}`).join('\n\n');
+    const prompt = `请将以下${texts.length}段文本分别翻译成${targetLangName}。
+每段翻译前用 [序号] 标记（如 [1]、[2]），只输出译文，不要解释。
+
+${numbered}`;
+
+    const data = await callGemini(prompt);
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+    // 按 [1] [2] ... 拆分结果
+    const results = [];
+    for (let i = 0; i < texts.length; i++) {
+      const tag = `[${i + 1}]`;
+      const nextTag = `[${i + 2}]`;
+      const start = raw.indexOf(tag);
+      if (start === -1) { results.push(''); continue; }
+      const contentStart = start + tag.length;
+      const end = i < texts.length - 1 ? raw.indexOf(nextTag, contentStart) : -1;
+      results.push((end === -1 ? raw.slice(contentStart) : raw.slice(contentStart, end)).trim());
+    }
+    return results;
+  }
+
+  // ---- Gemini API 底层调用 ----
+  async function callGemini(prompt) {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      if (resp.status === 401) throw new Error('Claude API Key 无效，请在插件设置中重新填写');
-      if (resp.status === 429) throw new Error('Claude API 请求过于频繁，请稍后再试');
-      throw new Error(err?.error?.message || `Claude API 错误 (${resp.status})`);
+      if (resp.status === 403) throw new Error('Gemini API Key 无效，请在插件设置中重新填写');
+      if (resp.status === 429) {
+        const err429 = new Error('Gemini API 请求过于频繁，回退到 Google 翻译');
+        err429.gemini429 = true;
+        throw err429;
+      }
+      throw new Error(err?.error?.message || `Gemini API 错误 (${resp.status})`);
     }
 
-    const data = await resp.json();
-    const translated = data.content?.[0]?.text?.trim() || '';
-    return { translated, detectedLang: 'auto' };
+    return resp.json();
   }
 
   // ---- 显示浮动气泡 ----
@@ -91,11 +125,12 @@
 
     tooltip = document.createElement('div');
     tooltip.id = 'bilingual-tooltip';
-    const engineBadge = (engine === 'claude' && claudeApiKey) ? '✦ Claude' : 'G Google';
+    const engineBadge = engine === 'gemini' && geminiApiKey ? '✦ Gemini' : 'G Google';
+    const engineClass = engine === 'gemini' && geminiApiKey ? 'gemini' : 'google';
     tooltip.innerHTML = `
       <div class="bt-header">
         <span class="bt-logo">🌐 双语翻译</span>
-        <span class="bt-engine-badge ${engine === 'claude' && claudeApiKey ? 'claude' : 'google'}">${engineBadge}</span>
+        <span class="bt-engine-badge ${engineClass}">${engineBadge}</span>
         <span class="bt-lang-badge" id="bt-lang">检测中...</span>
         <span class="bt-close" id="bt-close">✕</span>
       </div>
@@ -116,7 +151,7 @@
     document.body.appendChild(tooltip);
 
     // 位置计算，确保不超出视窗
-    const rect = tooltip.getBoundingClientRect();
+    tooltip.getBoundingClientRect(); // 触发布局，确保尺寸计算正确
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     let left = x + 12;
@@ -155,9 +190,9 @@
           });
         });
       }
-    }).catch(err => {
+    }).catch((err) => {
       const transEl = tooltip?.querySelector('.bt-translated');
-      if (transEl) transEl.innerHTML = `<span style="color:#e53935">翻译失败，请检查网络</span>`;
+      if (transEl) transEl.innerHTML = `<span style="color:#e53935">${escapeHtml(err?.message || '翻译失败，请检查网络')}</span>`;
     });
   }
 
@@ -170,13 +205,13 @@
 
   // ---- 鼠标松开：检测选中文字 ----
   document.addEventListener('mouseup', (e) => {
+    if (!enabled) return;
     if (tooltip && tooltip.contains(e.target)) return;
 
     setTimeout(() => {
       const selection = window.getSelection();
       const text = selection?.toString().trim();
       if (text && text.length > 1) {
-        currentSelection = text;
         if (mode === 'tooltip') {
           showTooltip(e.clientX, e.clientY, text);
         }
@@ -193,7 +228,7 @@
   });
 
   // ---- 接收来自 background / popup 的消息 ----
-  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.action === 'translatePage') {
       translatePageBilingual(msg.targetLang || targetLang);
       sendResponse({ ok: true });
@@ -212,7 +247,7 @@
   let pageTranslated = false;
 
   async function translatePageBilingual(lang) {
-    if (pageTranslated) return;
+    if (!enabled || pageTranslated) return;
     pageTranslated = true;
 
     // 收集所有文字段落节点
@@ -222,27 +257,54 @@
         return text && text.length > 10 && !el.dataset.btTranslated;
       });
 
-    // 批量翻译（每批 5 个，避免请求过猛）
-    for (let i = 0; i < blocks.length; i += 5) {
-      const batch = blocks.slice(i, i + 5);
-      await Promise.all(batch.map(async (el) => {
-        const text = el.innerText.trim();
-        if (!text || el.dataset.btTranslated) return;
-        try {
-          const { translated } = await translateText(text, lang);
+    // Gemini: 每 20 段合并为 1 次 API 请求；Google: 逐条翻译
+    const batchSize = (engine === 'gemini' && geminiApiKey) ? 20 : 5;
+
+    for (let i = 0; i < blocks.length; i += batchSize) {
+      const batch = blocks.slice(i, i + batchSize);
+      const texts = batch.map(el => el.innerText.trim()).filter(Boolean);
+
+      try {
+        let translations;
+        if (engine === 'gemini' && geminiApiKey) {
+          try {
+            // 1 次 API 调用翻译整批
+            translations = await translateBatchWithGemini(texts, lang);
+          } catch (e) {
+            if (e.gemini429) {
+              // 429 限流 → 回退 Google 翻译
+              translations = await Promise.all(texts.map(async t => {
+                const { translated } = await translateWithGoogle(t, lang);
+                return translated;
+              }));
+            } else {
+              throw e;
+            }
+          }
+        } else {
+          // Google: 逐条调用
+          translations = await Promise.all(texts.map(async t => {
+            const { translated } = await translateWithGoogle(t, lang);
+            return translated;
+          }));
+        }
+
+        batch.forEach((el, idx) => {
+          if (el.dataset.btTranslated || !translations[idx]) return;
           originalNodes.set(el, el.innerHTML);
           el.dataset.btTranslated = '1';
 
           const transDiv = document.createElement('div');
           transDiv.className = 'bt-paragraph-translation';
-          transDiv.textContent = translated;
+          transDiv.textContent = translations[idx];
           el.appendChild(transDiv);
-        } catch (e) {
-          // 跳过失败的节点
-        }
-      }));
-      // 小暂停，不阻塞浏览器
-      await sleep(80);
+        });
+      } catch (e) {
+        // 跳过失败的批次
+      }
+
+      // Gemini free tier: 15 RPM → 4s 间隔确保不超限；Google 无需等待
+      await sleep(engine === 'gemini' && geminiApiKey ? 4000 : 100);
     }
   }
 
