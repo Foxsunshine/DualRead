@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "DualRead — 英语生词伴读",
+    "description": "Extension name shown in the Chrome Web Store and the browser's extensions list."
+  },
+  "extDescription": {
+    "message": "在任意网页保存生词，之后每次再遇到会自动高亮，并可导出 Anki 友好的 CSV 词表。",
+    "description": "Short description (<=132 chars) shown in the Chrome Web Store listing and extensions list."
+  }
+}

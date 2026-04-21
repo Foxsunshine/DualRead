@@ -42,6 +42,13 @@
 
 ---
 
+## Phase 3 message-catalog deltas (retrospective)
+
+- **Added:** `FOCUS_WORD { word_key }` — background → sidepanel. Emitted when a highlight click routes through the background; consumed by `useFocusWord` in the panel.
+- **Added:** `SESSION_KEY_PENDING_FOCUS = "pending_focus_word"` in `chrome.storage.session` — carries the click intent across the sidePanel-open gesture gap (D34, S1).
+
+---
+
 ## 3. Architecture Overview
 
 ```
@@ -84,36 +91,89 @@
 | `chrome.storage.sync` | `v:<word>` (one per saved word) | Cross-device via Chrome Sync; 512-item / 100 KB cap budget-managed |
 | `chrome.storage.local` | `settings`, `write_buffer`, `matcher_cache` | Settings are device-local (D14); buffer and cache must not consume sync quota |
 
-### Manifest v1 (complete shape)
+### Manifest v1 (complete shape — source form, pre-build)
 
 ```json
 {
   "manifest_version": 3,
   "name": "DualRead",
   "version": "2.0.0",
-  "default_locale": "zh_CN",
   "permissions": ["storage", "sidePanel", "contextMenus", "downloads"],
   "host_permissions": ["https://translate.googleapis.com/*"],
   "action": {
     "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
     // ⚠️ NO "default_popup" — its presence overrides sidePanel on-click behavior
   },
-  "side_panel": { "default_path": "sidepanel.html" },
-  "background": { "service_worker": "background.js", "type": "module" },
+  "side_panel": { "default_path": "src/sidepanel/index.html" },
+  "background": { "service_worker": "src/background/index.ts", "type": "module" },
   "content_scripts": [{
     "matches": ["<all_urls>"],
-    "js": ["content.js"],
-    "css": ["content.css"],
+    "js": ["src/content/index.ts"],
+    "css": ["src/content/content.css"],
     "run_at": "document_idle",
     "all_frames": false
   }],
-  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+  }
 }
 ```
 
-**Removed vs current DualRead manifest:** `generativelanguage.googleapis.com` host permission; `default_popup`; `activeTab` (side-panel messaging doesn't need it).
+**Notes:**
+- This is the **source** manifest. `@crxjs/vite-plugin` reads it, rewrites TS entries to hashed JS (`assets/*.js`), emits `service-worker-loader.js`, and writes a compliant MV3 manifest to `dist/manifest.json`. Chrome loads `dist/`, not the project root.
+- `default_locale` strategy (D27): runtime `DR_STRINGS` dict drives all in-panel UI language, not `chrome.i18n`. Phase 4 re-adds `default_locale: "en"` + `_locales/{en,zh_CN}/messages.json` with **only** `extName` / `extDescription` messages so the Chrome Web Store listing and browser extensions list localize correctly. `__MSG_*__` references are confined to `manifest.json#name` and `#description`; no other runtime surface uses `chrome.i18n`. `@crxjs/vite-plugin` auto-copies `_locales/` into `dist/`.
+- CSP block allows Google Fonts (`fonts.googleapis.com` stylesheet + `fonts.gstatic.com` font files); `script-src 'self'` remains strict per MV3.
 
-**Added:** `sidePanel`, `downloads` (CSV), `side_panel.default_path`, `default_locale: zh_CN`, `background.type: module`, `content_scripts.run_at`, `all_frames: false`.
+**Removed vs original DualRead manifest:** `generativelanguage.googleapis.com` host permission; `default_popup`; `activeTab` (side-panel messaging doesn't need it).
+
+**Added:** `sidePanel`, `downloads` (CSV), `side_panel.default_path`, `background.type: module`, `content_scripts.run_at`, `all_frames: false`, `content_security_policy.extension_pages`.
+
+### Build & Tooling (resolves S2, S3)
+
+**Stack:**
+| Layer | Choice | Version |
+|---|---|---|
+| Language | TypeScript (strict) | 5.7.x |
+| UI | React | 19.x |
+| Bundler | Vite + `@crxjs/vite-plugin` | Vite 6 / crx 2.0-beta |
+| Styling | Native CSS + CSS variables | — (no Tailwind / CSS-in-JS) |
+| Node | Node 20 (pinned via `.nvmrc`) | 20.x |
+
+**Source tree:**
+```
+dualRead/
+├── manifest.json              # source manifest, read by @crxjs
+├── package.json / tsconfig.*.json / vite.config.ts / .nvmrc
+├── src/
+│   ├── shared/                # types, message contracts, storage wrapper
+│   │   ├── types.ts
+│   │   ├── messages.ts
+│   │   └── storage.ts
+│   ├── background/index.ts    # service worker
+│   ├── content/
+│   │   ├── index.ts
+│   │   └── content.css
+│   └── sidepanel/
+│       ├── index.html         # <link>s Google Fonts, mounts <App/>
+│       ├── main.tsx           # React entrypoint
+│       ├── App.tsx            # root: screen state machine
+│       ├── state.ts           # useSettings() hook, Screen/Tab unions
+│       ├── i18n.ts            # DR_STRINGS<Lang>
+│       ├── tokens.ts          # design tokens (mirror of CSS vars)
+│       ├── styles.css         # :root CSS variables + component styles
+│       ├── components/        # LogoMark, IconBtn, MetaLabel, Toggle, PanelHeader
+│       └── screens/           # Welcome, TranslateEmpty, Translate, VocabEmpty, Vocab, Settings
+├── icons/                     # 16 / 48 / 128
+└── dist/                      # build output → loaded by Chrome (.gitignore)
+```
+
+**Scripts:**
+- `npm run dev` — Vite dev server with HMR; side-panel hot-reloads on edit
+- `npm run build` — `tsc -b && vite build` → `dist/`
+- `npm run typecheck` — `tsc -b --noEmit`
+
+**Loading in Chrome:** always point "Load unpacked" at `dist/`, not the project root. Rebuild (or `npm run dev`) regenerates `dist/`.
 
 ### Message catalog (runtime messages)
 
@@ -140,7 +200,7 @@ Side-panel state survives tab switches but the *Translate tab preserves the last
    - background → sidepanel: `chrome.runtime.sendMessage` (only one listener, routes by `type`)
 3. **`VOCAB_UPDATED` fan-out.** On vocab change, iterate open tabs via `chrome.tabs.query({})` and `tabs.sendMessage` each. Per-tab re-scan is also **throttled to 500 ms** to prevent thundering-herd if 20 tabs are open.
 4. **`chrome.sidePanel.open()` needs a `tabId`.** Capture `sender.tab.id` from the inbound `SELECTION_CHANGED` / `OPEN_WORD` message; pass it into `open({ tabId })`.
-5. **Extension CSP.** Side-panel pages run under MV3 CSP — **no inline scripts, no `eval`**. Any UI framework must be ESM + bundled (pushes S2 toward Preact/Lit via Vite).
+5. **Extension CSP.** Side-panel pages run under MV3 CSP — **no inline scripts, no `eval`**. All UI code is ESM + bundled through Vite (S2/S3 resolved: React 19 + TypeScript, see §3 Build & Tooling and D26).
 6. **Content-script orphaning on extension update.** Old content scripts in already-loaded tabs lose their runtime. Detect via port `onDisconnect` or silently degrade — highlights stop updating until tab reload. Accept and document.
 7. **`chrome.storage.sync` silent fallback.** If user is signed out of Chrome Sync, `sync` quietly acts like `local` — no cross-device sync, no error. Detect via a heartbeat check and surface in the Sync status indicator (D24).
 8. **Quota detection.** Use `chrome.storage.sync.getBytesInUse(null)` + item count via `Object.keys(get(null)).length` for the ≥450-word warning (D25). Check on every successful save.
@@ -464,52 +524,103 @@ Dotted-orange underline may be hard to see on orange backgrounds or for some vis
 These are design gaps that need a short timeboxed spike during Phase 1 before the rest of the plan solidifies:
 
 - **S1 — Side-panel auto-open from selection gesture.** `chrome.sidePanel.open()` requires a user gesture. The hop `content.js → background.js → sidePanel.open()` may break the gesture chain. Spike: test if mouseup + async message preserves gesture. Fallback if not: user opens panel once via toolbar icon, after which selection just populates it.
-- **S2 — UI framework for side panel.** Three tabs with list + forms is painful in vanilla JS. Recommend **Preact** (~3 KB) or **Lit**. Decide in Phase 1 before Vocab tab gets complex.
-- **S3 — Build system.** Vanilla today; adding a side panel + shared matcher module pushes toward a minimal **Vite** setup. Decide alongside S2.
+- **S2 — UI framework for side panel. ✅ RESOLVED (D26):** React 19 + TypeScript (strict). Rationale: user preference, ecosystem fit for later phases (vocab list virtualization, context providers for settings), and Vite handles the MV3 CSP constraint out of the box.
+- **S3 — Build system. ✅ RESOLVED (D26):** Vite 6 + `@crxjs/vite-plugin`. Reads `manifest.json`, emits MV3-correct bundle to `dist/`, HMR for side-panel in dev. Chosen over plain esbuild because `@crxjs` handles service-worker + content-script manifest rewrites, asset hashing, and dev-reload wiring that would otherwise be hand-rolled.
 - **S4 — i18n mechanism.** Use Chrome's built-in `_locales/<lang>/messages.json` + `chrome.i18n.getMessage()`. Standard, cache-friendly, zero runtime cost. Confirm no blockers for dynamic language switching (may require page reload for the side panel).
 - **S5 — CSV export delivery.** Use `chrome.downloads` API from side panel (Blob URL). Confirm permission requirements — may need `"downloads"` added to manifest.
 - **S6 — Cross-tab side-panel state.** Side panel is global by default. Confirm behavior is as described in the message catalog (last selection persists); if Chrome renders per-tab state, adjust.
 
 Spikes must complete before locking Phase 2 start.
 
+**Phase 1 spike resolutions (retrospective):**
+- **S1 — side-panel auto-open on selection gesture:** content→background→`sidePanel.open()` does break the user-gesture chain in practice. Adopted fallback: the user opens the panel once via the toolbar icon; subsequent selections live-push via `SHOW_SELECTION`, and the last selection also persists in `chrome.storage.session` so the panel can hydrate if opened later. Not a blocker.
+- **S4 — i18n mechanism:** superseded by D27. Runtime `DR_STRINGS` dict is the v1 answer; `_locales` returns in Phase 4 only for Chrome Web Store listing localization.
+- **S5 — CSV export:** `chrome.downloads` + Blob URL works from the side panel; `downloads` permission added to the manifest. UTF-8 BOM + CRLF + RFC 4180 quoting in `src/sidepanel/exportCsv.ts` (see D32).
+- **S6 — cross-tab side-panel state:** confirmed — the panel is a single global instance. "Last selection persists" per the message catalog is the actual behavior; no code changes needed.
+
 ---
 
 ## 11. Implementation Roadmap
 
-### Phase 0 — Strip DualRead
+### Phase 0 — Strip DualRead & migrate to TS+React (DONE)
 
 - Remove Gemini integration, all non-Chinese/English language code, full-page bilingual mode, old popup UI.
-- Keep: manifest base, icons, Google Translate call site (to be moved into background.js).
+- Keep: manifest base, icons, Google Translate call site (moved into `src/background/index.ts`).
+- Rebuild side-panel shell from Claude Design handoff: all 6 screens (Welcome / Translate-empty / Translate / Vocab-empty / Vocab / Settings) rendered pixel-accurate in React + CSS variables, with zh-CN + en runtime i18n.
+- Migrate to Vite + `@crxjs/vite-plugin` + TypeScript strict. Chrome now loads `dist/`.
 
-### Phase 1 — Side panel shell
+### Phase 1 — Side panel shell (DONE)
 
-- Add `chrome.sidePanel` permission + `sidepanel.html`.
-- Configure `setPanelBehavior({ openPanelOnActionClick: true })`.
-- Scaffold Translate / Vocab / Settings tabs (zh-CN copy).
-- Content script: selection listener → message to background → side panel opens on Translate tab.
+- `chrome.sidePanel` permission + `src/sidepanel/index.html` wired.
+- `setPanelBehavior({ openPanelOnActionClick: true })` set on install.
+- Translate / Vocab / Settings tabs render from React components with zh-CN + en runtime i18n.
+- Content script (`src/content/index.ts`): `mouseup` listener dedupes via `lastSent`, extracts context sentence from closest block element, sends `SELECTION_CHANGED`.
+- Background (`src/background/index.ts`): Google Translate proxy with `chrome.storage.session` cache + classified error codes (`network` / `rate_limit` / `http_<n>` / `parse`) → side panel maps to i18n strings.
+- `useSelection` hook hydrates from `SESSION_KEY_LATEST_SELECTION` (late-open path) and subscribes to `SHOW_SELECTION` (live path); monotonic token guards against stale async results.
 
-### Phase 2 — Vocab storage
+### Phase 2 — Vocab storage (DONE)
 
-- Data model in `chrome.storage.sync` per §5.
-- Write buffer in `background.js` per §6.
-- Vocab tab: list, edit note, delete.
-- 450-word quota warning banner.
-- CSV export.
+- Per-word keys `v:<word_key>` in `chrome.storage.sync` per §5.
+- Write buffer in `src/background/vocab.ts`: in-memory `{ sets, deletes }` mirrored to `chrome.storage.local.write_buffer` (survives SW eviction), 100 ms debounced flush, snapshot-based rollback + 2 s retry on failure.
+- Messages wired: `SAVE_WORD` / `DELETE_WORD` / `GET_VOCAB` / `CLEAR_DATA` / `VOCAB_UPDATED` (broadcast after every successful flush).
+- Side panel:
+  - `useVocab` hook — optimistic save/remove, refresh on `VOCAB_UPDATED`, exposes `lastSyncedAt`.
+  - Vocab tab — live search (word / zh / note), Recent ↔ A→Z sort toggle, expand-to-edit rows, inline note textarea (Cmd+Enter commit / blur commit / Esc cancel), Delete.
+  - Translate tab Save button shows `saved` state when the selection's `word_key` already exists; re-Save preserves `created_at` + existing `note` (acts as "refresh translation / context").
+  - Quota banner surfaces at `≥450` words (`VOCAB_QUOTA_WARN_AT`).
+  - CSV export via `chrome.downloads` + Blob URL with UTF-8 BOM; RFC 4180 escaping; columns: `word, translation, context, note, source_url, created_at`.
+  - Settings "Last synced" line shows real `HH:MM` from `last_synced_at` and live item count.
+  - Clear-all-data routes through `CLEAR_DATA`: clears vocab → local → session → re-seeds default settings.
+- Project guideline file `CLAUDE.md` added: commenting policy (write comments, explain *why*), tech-stack summary, storage layer map, build commands.
 
-### Phase 3 — Highlight engine
+### Phase 3 — Highlight engine (DONE except benchmark)
 
-- TreeWalker + MutationObserver wrap/unwrap per §7.
-- Benchmark on article, Twitter/X, YouTube comments. Iterate if >300 ms.
-- Click-to-open-in-panel flow.
-- Toggle on/off in settings.
+- `src/content/highlight.ts` — factory `createHighlighter()` exposing `setVocab / setEnabled / setStyle / dispose`.
+  - Matcher: `\b(w1|w2|…)\b` case-insensitive, built from the vocab key set; longest-first alternation as defensive insurance for future multi-word entries.
+  - TreeWalker scan rejects `SCRIPT / STYLE / NOSCRIPT / TEXTAREA / INPUT / SELECT / OPTION / CODE / PRE / KBD / SAMP / IFRAME / OBJECT / EMBED`, any `[contenteditable]` ancestor, and any existing `.dr-hl` ancestor (no re-wrapping).
+  - Wrap path uses `createElement` + `splitText` + `textContent` only — never `innerHTML`. Span shape: `<span class="dr-hl" data-word="<lowercased key>">Match</span>`.
+  - Unwrap path replaces spans with text nodes and `normalize()`s each touched parent so the DOM looks like we were never there.
+  - MutationObserver on `document.body` (`childList + subtree`), 100 ms debounce, rescans *added subtrees only*. Our own inserted `.dr-hl` spans are filtered at enqueue time so we don't recurse into our own mutations.
+  - Vocab-rebuild throttle: leading-edge drain + trailing drain with `REBUILD_THROTTLE_MS = 500` (§3 #3 thundering-herd mitigation).
+  - Style variant keyed off `<html data-dr-hl-style="underline|background">` — one DOM write per flip, survives SPA navigation.
+  - Single capture-phase `document.click` delegate. On `.dr-hl`, `preventDefault + stopPropagation`, sends `OPEN_WORD { word }` to the background (D21).
+- `src/content/index.ts` — orchestrator. Reads settings + vocab keys directly from `chrome.storage.{local,sync}` on boot (keeps SW asleep on page load), applies them to the highlighter, then subscribes to `chrome.storage.onChanged`:
+  - `sync` area, any `v:*` key → re-read keys and `setVocab(next)`.
+  - `local` area, `settings` → `setStyle(next) + setEnabled(next.auto_highlight_enabled)`.
+- `src/content/content.css` — `:root { --dr-hl-color / --dr-hl-soft / --dr-hl-ink }` mirrors the panel accent token. Underline = dotted 2 px orange; Background = soft orange chip with 2 px padding compensated by −1 px margin. `box-decoration-break: clone` keeps multi-line highlights visually whole. `:focus-visible` outline for keyboard users.
+- Click-to-open-in-panel flow:
+  - New message `FOCUS_WORD { word_key }` (background → sidepanel).
+  - New session key `SESSION_KEY_PENDING_FOCUS` in `src/shared/messages.ts`.
+  - Background `handleOpenWord(word, tabId)` (D34):
+    1. Stash `word_key` in `chrome.storage.session` (late-open path).
+    2. Try `chrome.sidePanel.open({ tabId })` — swallows gesture-loss errors (spike S1).
+    3. Broadcast `FOCUS_WORD` for any already-open panel (live path).
+  - Side panel `useFocusWord()` hook: reads+clears the session key on mount, subscribes to `FOCUS_WORD`, exposes `{ focusedKey, focusTick, clear }`. `focusTick` bumps on every set so re-clicking the same highlight re-triggers scroll-into-view even with an unchanged key.
+  - `App.tsx` watches `(focusedKey, focusTick)` → sets `userTab = "vocab"` and `screen = "vocab"` (overrides the selection-driven auto-switch).
+  - `Vocab.tsx` accepts `focusedKey` + `focusTick`: expands the row, drops the search query if it would hide the row, and `scrollIntoView({ block: "center", behavior: "smooth" })` after one `requestAnimationFrame` so the row has laid out with its focused styling.
+- Toggle on/off: already wired in Settings (`auto_highlight_enabled` → `chrome.storage.local`); orchestrator's `storage.onChanged` listener propagates to `setEnabled()`, which disconnects the observer and unwraps every existing `.dr-hl` (full DOM opt-out per §7).
+- Open items:
+  - **Benchmark** on real SPAs (Twitter/X feed, YouTube comments) is still pending per R3. If `scanAll` >300 ms sustained, fall back to viewport-only scanning before Phase 4.
 
-### Phase 4 — Polish & release
+### Phase 4 — Polish & release (code-complete; pending manual verification + submission)
 
-- First-run welcome.
-- "Sync status" indicator.
-- Clear-all-data destructive action.
-- README + privacy policy update.
-- Chrome Web Store submission.
+**Shipped (in-repo):**
+- **First-run welcome** — `Welcome` screen routed when `settings.first_run_completed === false`. `onStart` / `onSkipToSettings` flip the flag; `CLEAR_DATA` re-seeds `DEFAULT_SETTINGS` so a wipe restarts the welcome flow.
+- **Sync-status indicator** — `useSyncStatus()` hook derives a 4-state signal (`synced` / `syncing` / `offline` / `error`) from `navigator.onLine`, `LOCAL_KEY_WRITE_BUFFER` (pending count), and `LOCAL_KEY_LAST_ERROR`. Precedence: `offline > error > syncing > synced`. Settings screen shows dot + label + detail line (raw error code copyable for bug reports — R5).
+- **Sync-error plumbing** — `src/background/vocab.ts` success path bumps `LOCAL_KEY_LAST_SYNCED` and clears `LOCAL_KEY_LAST_ERROR`; failure path preserves the *first* error's timestamp (`existing ?? record`) and always broadcasts `VOCAB_UPDATED` so the panel recomputes even when sync storage didn't change.
+- **Clear-all-data** — `CLEAR_DATA` in `src/background/index.ts`: clears vocab (which also drops `LOCAL_KEY_LAST_ERROR`, write buffer, last-synced) → `chrome.storage.local.clear()` → `chrome.storage.session.clear()` → re-seeds default settings. Panel then hard-reloads via `window.location.reload()` so no stale React state leaks across the wipe.
+- **README + privacy policy** — `README.md` and `privacy-policy.html` rewritten for the v2 vocabulary-learner product (dropped all Gemini/translator copy). `store-listing.md` carries the Chrome Web Store copy.
+- **Store-listing i18n (D27 reopen)** — `manifest.json` uses `default_locale: "en"` and `__MSG_extName__` / `__MSG_extDescription__`; `_locales/{en,zh_CN}/messages.json` provide the two entries. `@crxjs/vite-plugin` auto-copies `_locales/` into `dist/`. Confined to store-visible fields only — no other runtime surface uses `chrome.i18n`.
+
+**Refactor pass (before release):**
+- Deleted `src/shared/storage.ts`; `DEFAULT_SETTINGS` moved to `src/shared/types.ts`. `useSettings` inlined the 1-line storage get/set.
+- `useVocab` no longer tracks `lastSyncedAt` — `useSyncStatus` owns it. One source of truth for sync metadata.
+- Dropped unused `online` from `SyncStatus` public shape (internal state still drives `deriveState`).
+
+**Still pending — manual-only:**
+- **R3 benchmark** — §9 budget says `scanAll` must stay <120 ms on a typical article and <300 ms sustained on heavy SPAs. Must be measured in Chrome on Twitter/X feed and YouTube comments. Fallback if busted: viewport-only scanning (IntersectionObserver-gated) or domain deny-list.
+- **Store screenshots** — `store-listing.md` §Screenshots lists the five shots required (welcome / translate / vocab / highlighted page / settings).
+- **Chrome Web Store submission** — developer dashboard upload of the `dist/` zip, privacy-policy URL, screenshots, listing copy. Happens outside the repo.
 
 **v1.1 candidates (not in v1):**
 - AI tutor tab (Gemini with user-supplied key)
@@ -549,6 +660,18 @@ Spikes must complete before locking Phase 2 start.
 | D23 | CSV export only in v1; Anki `.apkg` in v1.1 | Ship `.apkg` now | sql.js adds ~1 MB to bundle; YAGNI |
 | D24 | Sync status indicator in settings | Silent sync | Mitigates no-telemetry blind spot |
 | D25 | Quota warning banner at ~450 words | Hard cap with no warning | Gives user runway to export |
+| D26 | TypeScript (strict) + React 19 + Vite 6 + `@crxjs/vite-plugin` | Vanilla JS / Preact / Lit / esbuild-only / webpack | User preference; `@crxjs` handles MV3 manifest rewriting + HMR that plain esbuild would require hand-rolling; React ecosystem pays off once vocab list, edit dialogs, and context providers land. Cost: ~67 KB gzipped React runtime — acceptable for a side-panel, not shipped to content pages |
+| D27 | Runtime `DR_STRINGS<Lang>` dict for UI copy; `_locales/{en,zh_CN}/messages.json` scoped to store-visible manifest fields only (`extName`, `extDescription`) | `chrome.i18n.getMessage()` everywhere with `_locales/` as the single source of truth | Instant language toggle without page reload; simpler for a 2-language product. Phase 4 closed the reopen: `manifest.json` uses `__MSG_extName__` / `__MSG_extDescription__` with `default_locale: "en"` so Chrome Web Store localizes the listing, while all in-panel copy stays in `DR_STRINGS` |
+| D28 | Native CSS + CSS variables (`:root { --dr-*: ... }`) mirror `tokens.ts` | Tailwind / CSS Modules / vanilla-extract / CSS-in-JS | Preserves the exact palette handed off from Claude Design; CSS vars let runtime theme tweaks happen without a rebuild; small surface (one `styles.css`) doesn't justify build-time CSS tooling |
+| D29 | Write buffer: in-memory `{ sets, deletes }` + `chrome.storage.local` mirror; snapshot-rollback on flush failure, 2 s retry | Direct per-write to sync / fire-and-forget buffer | Snapshot isolation lets concurrent saves during flight land in a fresh pending bucket without data loss; mirroring to local survives SW eviction; rollback-into-pending (not lose) on failure is the only safe behavior for user-written data |
+| D30 | `VOCAB_UPDATED` broadcast on every flush + on `CLEAR_DATA` | Side-panel polls `GET_VOCAB` on focus | Broadcasts let any number of panel instances (including future multi-window) stay coherent cheaply; `.catch()` is acceptable since "no listener" is the common case |
+| D31 | Save on already-saved word = refresh translation/context, preserve `created_at` + `note` | Reject / show confirmation | Users re-encountering a word often have a better context sentence now; overwriting `updated_at` while keeping `created_at` mirrors Chrome Sync's per-key last-write-wins and keeps the note safe |
+| D32 | CSV export: CRLF + UTF-8 BOM, RFC 4180 quoting | LF-only / no BOM | Excel on Windows mojibakes `zh` column without BOM; CRLF is the RFC 4180 norm; stable column order enables Anki template authoring |
+| D33 | Project-level commenting policy: write comments, explain *why* | Default Claude "no comments unless non-obvious" | User preference for this project; captured in `CLAUDE.md` so future sessions inherit the rule |
+| D34 | Highlight click → `OPEN_WORD` → background writes `SESSION_KEY_PENDING_FOCUS` + tries `sidePanel.open({ tabId })` + broadcasts `FOCUS_WORD` | Single live-only `chrome.tabs.sendMessage` to panel / direct `sidePanel.open` from content | Content scripts can't call `sidePanel.open` (no access). Spike S1 confirmed gesture loss over async hops, so the session-key stash is the only reliable late-open path; the broadcast handles the already-open case; the `sidePanel.open` attempt handles the still-warm-gesture case. Three paths, one intent |
+| D35 | Highlight variant keyed off `<html data-dr-hl-style>` attribute, not per-span class | Per-span `.dr-hl--underline` / `.dr-hl--background` class | One DOM write flips every span; survives SPA navigation without rewriting inserted markup; keeps the wrap path's hot loop branch-free |
+| D36 | Vocab-rebuild throttle is leading-edge + trailing drain (500 ms), MO flush is pure trailing-edge debounce (100 ms) | One uniform debounce for both | First paint of highlights must be immediate when a page loads (user just opened a page, expects to see their words now); subsequent bursts from `VOCAB_UPDATED` fanout across 20 tabs must coalesce to one scan. MO mutations are always already-debounceable by their nature (host-page burst writes) so trailing-only is correct there |
+| D37 | Highlight click does `preventDefault + stopPropagation` on the click | Let the host handler run alongside ours | User clicked a decorated word, not a link. Opening the panel is the unambiguous intent (D21); letting a containing `<a>` navigate away on the same gesture is worse than letting the panel open |
 
 ---
 

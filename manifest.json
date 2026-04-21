@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "DualRead",
+  "name": "__MSG_extName__",
   "version": "2.0.0",
-  "description": "Chinese speakers learning English: save unknown words while browsing, highlight them everywhere they appear.",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "homepage_url": "https://github.com/Foxsunshine/DualRead",
   "permissions": ["storage", "sidePanel", "contextMenus", "downloads"],
   "host_permissions": ["https://translate.googleapis.com/*"],
@@ -14,17 +15,17 @@
     }
   },
   "side_panel": {
-    "default_path": "sidepanel.html"
+    "default_path": "src/sidepanel/index.html"
   },
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "src/background/index.ts",
     "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "js": ["src/content/index.ts"],
+      "css": ["src/content/content.css"],
       "run_at": "document_idle",
       "all_frames": false
     }

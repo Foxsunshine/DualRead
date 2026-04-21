@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "DualRead",
+    "description": "Extension name shown in the Chrome Web Store and the browser's extensions list."
+  },
+  "extDescription": {
+    "message": "Save unknown English words as you browse. DualRead auto-highlights them on every page and exports to Anki-ready CSV.",
+    "description": "Short description (<=132 chars) shown in the Chrome Web Store listing and extensions list."
+  }
+}

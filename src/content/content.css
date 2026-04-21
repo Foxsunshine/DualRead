@@ -1,0 +1,76 @@
+/* DualRead content-script styles.
+ *
+ * These rules live inside every webpage that loads the extension, so they
+ * must defend against arbitrary host CSS. Strategy:
+ *   - Scope every rule to `.dr-hl`, which no normal page uses.
+ *   - Wrap the decorative properties in `:where()` / `all: revert` resets so
+ *     we don't inherit weird colors or line-heights from aggressive hosts.
+ *   - Style variants key off a document-level attribute set by the engine
+ *     (highlight.ts → setStyle): `data-dr-hl-style="underline|background"`.
+ *
+ * Shadow DOM is intentionally not used (DESIGN.md D20) — the click handler
+ * must be able to reach these spans directly.
+ */
+
+:root {
+  /* Mirror of the side panel's accent token (tokens.ts / styles.css).
+   * Redefined here because content scripts run in the host document's
+   * global scope and can't import the panel's :root. Keep in sync. */
+  --dr-hl-color: #D97757;
+  --dr-hl-soft: rgba(217, 119, 87, 0.18);
+  --dr-hl-ink: #A04A2E;
+}
+
+/* Base: neutralise host-page decorations we don't want to inherit, then set
+ * only the properties the engine actually needs. `background-color: transparent`
+ * is belt-and-braces for pages that style all spans with a background. */
+.dr-hl {
+  color: inherit;
+  background-color: transparent;
+  cursor: pointer;
+  /* Keep pointer/click semantics intact even if the host disables them on
+   * inline text (some reader-mode CSS does this). */
+  pointer-events: auto;
+  /* Prevent surrounding text selection from visually breaking at span edges. */
+  text-decoration: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Default variant: dotted underline. Matches the side-panel's .dr-style-preview
+ * so users get a visual through-line between "here's the style" and "here's
+ * the highlight on the page". */
+[data-dr-hl-style="underline"] .dr-hl,
+.dr-hl {
+  border-bottom: 2px dotted var(--dr-hl-color);
+  /* Negative margin prevents layout shift from the underline when wrapping
+   * existing inline text — the 2px comes from the element's own box. */
+}
+
+[data-dr-hl-style="underline"] .dr-hl:hover {
+  background-color: var(--dr-hl-soft);
+}
+
+/* Background variant: soft chip. Removes the underline so the two styles
+ * read as meaningfully different. */
+[data-dr-hl-style="background"] .dr-hl {
+  border-bottom: 0;
+  background-color: var(--dr-hl-soft);
+  color: var(--dr-hl-ink);
+  border-radius: 2px;
+  padding: 0 2px;
+  /* Compensate for the padding so adjacent letters don't push apart. */
+  margin: 0 -1px;
+}
+
+[data-dr-hl-style="background"] .dr-hl:hover {
+  background-color: var(--dr-hl-color);
+  color: #fff;
+}
+
+/* Focus ring for keyboard users — rare on a decorated span, but :focus-visible
+ * only paints when the browser decides it's warranted. */
+.dr-hl:focus-visible {
+  outline: 2px solid var(--dr-hl-color);
+  outline-offset: 1px;
+}

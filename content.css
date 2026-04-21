@@ -1,4 +1,0 @@
-/* DualRead content-script styles.
- * Phase 0: empty. Highlight styles (.dr-hl) land in Phase 3.
- * Kept as a registered asset in manifest so Phase 3 can ship without a manifest change.
- */

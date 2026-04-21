@@ -2,3 +2,6 @@
 *.zip
 test.txt
 node_modules/
+dist/
+*.local
+.vite/

@@ -560,6 +560,23 @@ button { font-family: inherit; }
   color: var(--dr-ink-muted);
   font-style: italic;
 }
+.dr-vocab-row__note-input {
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--dr-ink);
+  background: var(--dr-bg);
+  border: 1px solid var(--dr-border);
+  border-radius: 6px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.dr-vocab-row__note-input:focus {
+  outline: none;
+  border-color: var(--dr-accent);
+}
 .dr-vocab-row__actions {
   display: flex;
   gap: 8px;
@@ -711,6 +728,47 @@ button { font-family: inherit; }
   color: var(--dr-ink-muted);
   font-family: var(--dr-font-mono);
   margin-top: 1px;
+  /* Detail line can carry raw error codes — let users select+copy for bug reports. */
+  user-select: text;
+  word-break: break-word;
+}
+
+/* State variants. Dot color + status-line color track the semantic state;
+ * detail line stays muted monospace so long error codes read uniformly. */
+.dr-sync--synced .dr-sync__dot {
+  background: var(--dr-sage);
+  box-shadow: 0 0 0 3px var(--dr-sage-soft);
+}
+.dr-sync--synced .dr-sync__status { color: var(--dr-sage); }
+
+.dr-sync--syncing .dr-sync__dot {
+  background: var(--dr-amber);
+  box-shadow: 0 0 0 3px var(--dr-amber-soft);
+  /* Pulse to communicate in-flight work without spinners (which jitter in a
+   * narrow panel). Keyframes defined below. */
+  animation: dr-sync-pulse 1.4s ease-in-out infinite;
+}
+.dr-sync--syncing .dr-sync__status { color: var(--dr-amber); }
+
+.dr-sync--offline .dr-sync__dot {
+  background: var(--dr-ink-muted);
+  box-shadow: 0 0 0 3px rgba(155, 143, 129, 0.18);
+}
+.dr-sync--offline .dr-sync__status { color: var(--dr-ink-muted); }
+
+.dr-sync--error {
+  border-color: var(--dr-red-border);
+  background: var(--dr-red-soft);
+}
+.dr-sync--error .dr-sync__dot {
+  background: var(--dr-red);
+  box-shadow: 0 0 0 3px var(--dr-red-soft);
+}
+.dr-sync--error .dr-sync__status { color: var(--dr-red); }
+
+@keyframes dr-sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 .dr-settings__spacer { height: 20px; }
