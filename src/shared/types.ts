@@ -10,11 +10,12 @@ export interface Settings {
   ui_language: Lang;
   first_run_completed: boolean;
   level: Level;
-  // v1.1: when true, a plain click on a word in the page opens the
-  // translation bubble. Users can flip this off per-site when link-dense
-  // pages (doc sites, comment threads with many `<a>`) make the filter
-  // chain feel intrusive. Default on — the whole point of the iteration.
-  click_to_translate: boolean;
+  // v1.1 post-H master switch (D52). When false, DualRead is fully dormant
+  // on the page: no selection relay, no click/drag bubble, no `.dr-hl`
+  // highlights rendered. Side panel remains functional (shows a paused
+  // banner). Default true — first-run users land in learning mode; the
+  // floating FAB lets them toggle off any time without opening Settings.
+  learning_mode_enabled: boolean;
 }
 
 // Canonical default settings. Consumed by:
@@ -29,7 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ui_language: "zh-CN",
   first_run_completed: false,
   level: "B1",
-  click_to_translate: true,
+  learning_mode_enabled: true,
 };
 
 export interface VocabWord {

@@ -11,12 +11,29 @@
 // runtime messages.
 
 import { DEFAULT_SETTINGS } from "../shared/types";
-import type { Settings, VocabWord } from "../shared/types";
+import type { Settings, VocabWord, Lang } from "../shared/types";
 import { STORAGE_PREFIX_VOCAB } from "../shared/messages";
 import { createHighlighter } from "./highlight";
 import { snapOffsetsToWord } from "./wordBoundary";
 import { createBubble } from "./bubble";
 import { createClickTranslator } from "./clickTranslate";
+import { createFab } from "./fab";
+import type { FabStrings } from "./fab";
+
+// FAB labels kept inline instead of importing `DR_STRINGS`. The side panel
+// dict is ~70 keys and we only need two — copying here keeps the content
+// bundle lean and decoupled from panel copy churn.
+function fabStrings(lang: Lang): FabStrings {
+  return lang === "zh-CN"
+    ? {
+        onLabel: "学习模式：已开启（点击关闭）",
+        offLabel: "学习模式：已关闭（点击开启）",
+      }
+    : {
+        onLabel: "Learning mode: on (click to turn off)",
+        offLabel: "Learning mode: off (click to turn on)",
+      };
+}
 
 // ───── Extension-context liveness ────────────────────────────
 // When the user reloads the extension (or Chrome silently updates it while
@@ -55,6 +72,11 @@ const onMouseUp = (): void => {
   // browsers update it on the next frame after mouseup.
   window.setTimeout(() => {
     if (shutdownIfOrphaned()) return;
+    // Master switch (D52). When off, the content script is fully dormant
+    // page-side — no bubble, no selection relay. FAB remains visible so
+    // the user can re-enable. Checked here at handler entry so we don't
+    // even compute `rawText` on pages where learning mode is off.
+    if (!currentSettings.learning_mode_enabled) return;
     const sel = window.getSelection();
     const rawText = sel?.toString().trim() ?? "";
     if (!rawText || rawText.length < 2) return;
@@ -77,6 +99,36 @@ const onMouseUp = (): void => {
         const snapped = snapOffsetsToWord(context, idx, idx + rawText.length);
         if (snapped === null) return;
         text = snapped.text;
+      }
+    }
+
+    // Show the in-page bubble for this selection (post-Phase-H fix). We do
+    // this BEFORE the lastSent dedupe so that re-selecting the same text
+    // re-opens the bubble — the dedupe only exists to avoid spamming the
+    // side panel with redundant SELECTION_CHANGED messages; the bubble is
+    // a user-facing surface and should respond to every fresh gesture.
+    // Master-switch gating happens at handler entry, so by this point we
+    // know learning mode is on.
+    if (sel && sel.rangeCount > 0) {
+      try {
+        const range = sel.getRangeAt(0);
+        const box = range.getBoundingClientRect();
+        if (box.width > 0 || box.height > 0) {
+          clickTranslator.showSelection({
+            text,
+            context,
+            anchor: {
+              top: box.top,
+              left: box.left,
+              right: box.right,
+              bottom: box.bottom,
+              width: box.width,
+              height: box.height,
+            },
+          });
+        }
+      } catch {
+        /* DOM may have mutated under us; skip the bubble silently */
       }
     }
 
@@ -135,6 +187,30 @@ const clickTranslator = createClickTranslator({
   bubble,
   getSettings: () => currentSettings,
 });
+
+// FAB is mounted in init() (needs document.body) — module-scope holder
+// lets the storage listener and shutdown path reach it.
+let fab: ReturnType<typeof createFab> | null = null;
+
+// Persist a new learning-mode value. Bubble is dismissed on turn-off so
+// a user who pauses mid-translation doesn't see a stale bubble linger.
+async function setLearningMode(enabled: boolean): Promise<void> {
+  try {
+    if (!chrome.runtime?.id) return;
+    const { settings } = await chrome.storage.local.get("settings");
+    const next: Settings = {
+      ...DEFAULT_SETTINGS,
+      ...((settings as Partial<Settings> | undefined) ?? {}),
+      learning_mode_enabled: enabled,
+    };
+    await chrome.storage.local.set({ settings: next });
+    // Storage listener will pick this up and re-sync currentSettings /
+    // highlighter / FAB visual — we don't double-apply here.
+    if (!enabled) bubble.hide();
+  } catch {
+    shutdownIfOrphaned();
+  }
+}
 
 // ───── Highlight orchestration ───────────────────────────────
 // One highlighter instance per frame. The module-scope singleton is fine
@@ -215,7 +291,16 @@ async function init(): Promise<void> {
   currentSettings = settings;
   highlighter.setStyle(settings.highlight_style);
   highlighter.setVocab(keys);
-  highlighter.setEnabled(settings.auto_highlight_enabled);
+  // Highlighter is gated on both the per-feature auto_highlight setting
+  // and the master learning_mode switch. When learning is off we want a
+  // fully clean page — highlights unwrapped too.
+  highlighter.setEnabled(settings.auto_highlight_enabled && settings.learning_mode_enabled);
+
+  fab = createFab({
+    enabled: settings.learning_mode_enabled,
+    strings: fabStrings(settings.ui_language),
+    onToggle: () => void setLearningMode(!currentSettings.learning_mode_enabled),
+  });
 
   // React to cross-context state changes:
   //  - sync area, any `v:*` key → vocab membership changed → rebuild matcher.
@@ -241,9 +326,14 @@ async function init(): Promise<void> {
         ...DEFAULT_SETTINGS,
         ...((changes.settings.newValue as Partial<Settings> | undefined) ?? {}),
       };
+      const prev = currentSettings;
       currentSettings = next;
       highlighter.setStyle(next.highlight_style);
-      highlighter.setEnabled(next.auto_highlight_enabled);
+      highlighter.setEnabled(next.auto_highlight_enabled && next.learning_mode_enabled);
+      fab?.setEnabled(next.learning_mode_enabled);
+      if (next.ui_language !== prev.ui_language) {
+        fab?.setStrings(fabStrings(next.ui_language));
+      }
     }
   };
   chrome.storage.onChanged.addListener(onStorageChanged);
@@ -262,6 +352,8 @@ async function init(): Promise<void> {
     clickTranslator.dispose();
     bubble.dispose();
     highlighter.dispose();
+    fab?.dispose();
+    fab = null;
   };
 }
 

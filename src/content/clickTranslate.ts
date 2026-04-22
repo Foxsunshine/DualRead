@@ -8,7 +8,7 @@
 //
 // Filter chain (D39). Rejections are silent — we fall through to whatever
 // the host page wanted to do with the click:
-//   1. `settings.click_to_translate === false` — user opted out
+//   1. `settings.learning_mode_enabled === false` — master switch off (D52)
 //   2. modifier keys (meta/ctrl/alt/shift) — preserve native nav like
 //      Cmd+click-to-open-in-new-tab
 //   3. drag > 4 px between mousedown and click — selection gesture, not
@@ -192,6 +192,13 @@ export interface ClickTranslatorHandle {
   // the handler sends FOCUS_WORD_IN_VOCAB so the side panel opens/focuses
   // the word in its Vocab tab.
   showSaved(args: { anchor: BubbleAnchor; saved: VocabWord }): void;
+  // Drag-selection entry point (v1.1 post-Phase-H feedback). Called from
+  // content/index.ts after a valid mouseup selection has been snapped to
+  // word boundaries. Runs the same translate + save-check flow as a single
+  // click, but with a pre-computed anchor (the selection's bounding rect)
+  // and text. This makes multi-word phrases surface the same in-page UI
+  // as single-word clicks instead of silently routing to the side panel.
+  showSelection(args: { text: string; anchor: BubbleAnchor; context: string }): void;
 }
 
 export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslatorHandle {
@@ -316,7 +323,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
 
   function passesFilterChain(e: MouseEvent): boolean {
     const settings = getSettings();
-    if (!settings.click_to_translate) return false;
+    if (!settings.learning_mode_enabled) return false;
     if (e.defaultPrevented) return false;
     // Only left-button plain clicks. Modifier keys preserve native
     // behaviors (Cmd-click = new tab, Shift-click = extend selection).
@@ -347,13 +354,35 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     e.preventDefault();
     e.stopPropagation();
 
+    const context = extractContextForNode(resolved.textNode);
     const click: CurrentClick = {
       token: ++currentToken,
       word: resolved.word,
       anchor: rectForWord(resolved.textNode, resolved.start, resolved.end),
-      context: extractContextForNode(resolved.textNode),
+      context,
       lang: getSettings().ui_language,
     };
+    // Mirror the bubble's lookup into the side panel so the Translate tab
+    // shows the same word + context + source_url and — via Phase F's
+    // selection effect — auto-switches from Vocab/Settings back to
+    // Translate. Best-effort: the bubble is the authoritative result
+    // surface, so a failed sidepanel sync shouldn't block the bubble.
+    try {
+      if (chrome.runtime?.id) {
+        void chrome.runtime
+          .sendMessage({
+            type: "SELECTION_CHANGED",
+            text: resolved.word,
+            context_sentence: context,
+            source_url: location.href,
+          })
+          .catch(() => {
+            /* sidepanel may be closed; TRANSLATE_REQUEST below still lights the bubble */
+          });
+      }
+    } catch {
+      /* extension context invalidated — swallow, bubble flow will fail next */
+    }
     void startFlow(click);
   };
 
@@ -414,6 +443,23 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     });
   }
 
+  // Drag-selection bubble (post-Phase-H). Same translate + save-check
+  // flow as `startFlow` but driven by a precomputed anchor/text/context
+  // instead of a click-derived word resolution. Allocates a new token so
+  // it races against any in-flight click or prior selection on equal
+  // footing — whichever fires last wins the bubble.
+  function showSelection(args: { text: string; anchor: BubbleAnchor; context: string }): void {
+    const lang = getSettings().ui_language;
+    const click: CurrentClick = {
+      token: ++currentToken,
+      word: args.text,
+      anchor: args.anchor,
+      context: args.context,
+      lang,
+    };
+    void startFlow(click);
+  }
+
   return {
     dispose(): void {
       document.removeEventListener("mousedown", onMouseDown);
@@ -421,5 +467,6 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       active = null;
     },
     showSaved,
+    showSelection,
   };
 }

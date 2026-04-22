@@ -174,9 +174,10 @@ export function App() {
           />
         );
       case "translate-empty":
-        return <TranslateEmpty S={S} />;
+        return <TranslateEmpty S={S} paused={!settings.learning_mode_enabled} />;
       case "translate":
-        if (!selection.data) return <TranslateEmpty S={S} />;
+        if (!selection.data)
+          return <TranslateEmpty S={S} paused={!settings.learning_mode_enabled} />;
         return (
           <Translate
             S={S}
@@ -241,15 +242,7 @@ export function App() {
   return (
     <div className="dr-root" data-screen={activeScreen} lang={settings.ui_language}>
       {activeScreen !== "welcome" && activeTab && (
-        <PanelHeader
-          S={S}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          clickToTranslate={settings.click_to_translate}
-          onToggleClickTranslate={() =>
-            update({ click_to_translate: !settings.click_to_translate })
-          }
-        />
+        <PanelHeader S={S} activeTab={activeTab} onTabChange={handleTabChange} />
       )}
       {activeScreen === "welcome" ? content : <main className="dr-main">{content}</main>}
     </div>

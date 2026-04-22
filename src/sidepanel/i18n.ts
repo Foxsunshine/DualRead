@@ -66,8 +66,11 @@ interface Strings {
   clearData: string;
   clearDataHint: string;
   savedToast: string;
-  clickTranslateTooltipOn: string;
-  clickTranslateTooltipOff: string;
+  // Pause-state banner shown on the empty Translate screen when the FAB's
+  // learning-mode switch is off. Side-panel flows still work — the banner
+  // nudges the user toward the page-level toggle so they can resume.
+  learningModePausedTitle: string;
+  learningModePausedBody: string;
 }
 
 export const DR_STRINGS: Record<Lang, Strings> = {
@@ -138,8 +141,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     clearData: "清除所有数据",
     clearDataHint: "删除所有保存的词和设置。此操作不可撤销。",
     savedToast: "已保存",
-    clickTranslateTooltipOn: "点词翻译：已开启（点击关闭）",
-    clickTranslateTooltipOff: "点词翻译：已关闭（点击开启）",
+    learningModePausedTitle: "学习模式已暂停",
+    learningModePausedBody: "网页上的点词翻译、划词翻译和高亮都已关闭。点击页面右下角的悬浮按钮即可重新开启。",
   },
   en: {
     appName: "DualRead",
@@ -208,8 +211,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     clearData: "Clear all data",
     clearDataHint: "Delete all saved words and settings. This cannot be undone.",
     savedToast: "Saved",
-    clickTranslateTooltipOn: "Click-to-translate: on (click to turn off)",
-    clickTranslateTooltipOff: "Click-to-translate: off (click to turn on)",
+    learningModePausedTitle: "Learning mode paused",
+    learningModePausedBody: "Click-to-translate, drag-to-translate, and page highlights are off. Click the floating button at the bottom-right of any page to turn them back on.",
   },
 };
 

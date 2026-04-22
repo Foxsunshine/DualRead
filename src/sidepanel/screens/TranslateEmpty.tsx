@@ -1,6 +1,18 @@
 import type { Strings } from "../i18n";
 
-export function TranslateEmpty({ S }: { S: Strings }) {
+// Empty-state for the Translate tab. Two variants share this file because
+// their layout is identical — only the copy differs:
+//   - default: "select text on a page" prompt (selection has never arrived)
+//   - paused: FAB master switch is off, so there's nothing to translate
+//     regardless of user action. The paused body tells the user where to
+//     find the re-enable control (page-level FAB, bottom-right) so they
+//     don't conclude the extension is broken.
+interface Props {
+  S: Strings;
+  paused?: boolean;
+}
+
+export function TranslateEmpty({ S, paused = false }: Props) {
   return (
     <section className="dr-screen dr-translate-empty">
       <div className="dr-translate-empty__icon">
@@ -18,8 +30,12 @@ export function TranslateEmpty({ S }: { S: Strings }) {
           <path d="M14 10h7M14 10l3 9m4-9l-3 9m-5-3h6" />
         </svg>
       </div>
-      <div className="dr-translate-empty__title">{S.selectPrompt}</div>
-      <div className="dr-translate-empty__hint">{S.selectHint}</div>
+      <div className="dr-translate-empty__title">
+        {paused ? S.learningModePausedTitle : S.selectPrompt}
+      </div>
+      <div className="dr-translate-empty__hint">
+        {paused ? S.learningModePausedBody : S.selectHint}
+      </div>
     </section>
   );
 }

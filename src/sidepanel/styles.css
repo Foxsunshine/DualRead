@@ -101,28 +101,6 @@ button { font-family: inherit; }
 }
 .dr-header__spacer { flex: 1; }
 
-.dr-icon-btn {
-  border: none;
-  background: transparent;
-  color: var(--dr-ink-soft);
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-.dr-icon-btn:hover { background: var(--dr-border-soft); }
-/* Toggle-on state: used by PanelHeader's click-to-translate switch (Phase G).
- * Accent background + accent ink makes "engaged" visually distinct from a
- * hover highlight — hover is transient, active persists. */
-.dr-icon-btn--active {
-  background: var(--dr-accent-soft);
-  color: var(--dr-accent-ink);
-}
-.dr-icon-btn--active:hover { background: var(--dr-accent-soft); }
 
 /* ───── Tabs ───── */
 .dr-tabs { display: flex; gap: 0; }
