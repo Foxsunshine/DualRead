@@ -1,7 +1,7 @@
 # DualRead v1.1 — User Feedback & Redesign
 
 **Date:** 2026-04-22
-**Status:** Design locked, implementation pending
+**Status:** Shipped as v2.0.0 — submitted to Chrome Web Store on 2026-04-22, awaiting review
 **Scope:** UX redesign driven by v1 real-usage feedback
 
 ---
@@ -106,10 +106,21 @@ DESIGN.md D37. Where a decision overrides a prior one, it is marked
 | D49 | **Background becomes the translation hub.** Move translator + session cache from `src/sidepanel/useSelection.ts` to `src/background/translate.ts`. Sidepanel and bubble both request via `TRANSLATE_REQUEST`. Dedup via existing session cache keyed by `word_key` | Keep in sidepanel + relay / two parallel copies | Content scripts can't reliably call translation APIs (CORS); moving to background is necessary. Once moved, sidepanel deduplicates trivially by pulling from the same cache |
 | D50 | **Testing:** unit tests for `wordBoundary.ts` only (`snapSelection` edge cases); everything else stays in the manual checklist in §8 | Full e2e / no tests | Pure-function coverage on the one algorithm with real regression potential; Playwright-extension e2e setup is a 4–6 h sunk cost this iteration doesn't justify |
 | D51 | **Rename `OPEN_WORD` → `FOCUS_WORD_IN_VOCAB`.** Supersedes part of D34 | Keep `OPEN_WORD` name | The new flow no longer opens the side panel (D43 auto-opens it on any selection); the message's only job is "position vocab tab on this word". Renaming prevents future contributors from assuming side-panel-open side effects |
+| D52 | **Master on/off via page-level FAB** stored in `settings.learning_mode_enabled` (local, default true). One switch gates all page-facing behavior | Side-panel only toggle / per-domain / per-tab | User requested a one-gesture pause reachable from any page without opening the side panel; global is the simplest mental model and matches "Grammarly-style" feature switching; per-domain deferred to v1.2 |
+| D53 | **"Off" means fully dormant page-side:** no mouseup selection relay, no click/drag bubble, no `.dr-hl` highlights rendered. Side panel remains functional | Keep highlights on / keep selection relay / disable side panel | "Off" has to match user expectations — a partial silencing would read as buggy; side panel stays available because it's already-open trusted surface for reviewing past lookups |
+| D54 | **Paused banner on Translate tab** when master is off: "学习模式已暂停 / Learning mode paused" + pointer to the FAB | Blank screen / disable side panel / toast | Tells the user where the re-enable control lives so they don't conclude the extension is broken |
+| D55 | **FAB chrome:** fixed bottom-right, 44×44 circular, closed Shadow DOM, `z-index: 2147483645` (one below the bubble so an overlapping bubble wins), mounted on `<body>` (not `<html>`) after Reddit Shreddit compatibility testing, custom tag `dualread-fab` to avoid prefix collisions | Draggable / top-right / `<html>`-mounted / short `dr-fab` tag | 44px matches the WCAG tap-target minimum; body-mount + namespaced tag were required for cross-site reliability; draggable + per-domain hide deferred to v1.2 |
+| D56 | **D52 supersedes D40.** The PanelHeader click-to-translate toggle is removed; `settings.click_to_translate` field is deleted. Master switch plus `auto_highlight_enabled` is the full control surface | Keep both (master + sub-toggle) / collapse master into Settings | Reduces concept count; the PanelHeader toggle landed in Phase G but field testing confirmed a page-level control is strictly more reachable and makes the header toggle redundant |
+| D57 | **`auto_highlight_enabled` stays as a Settings-screen sub-preference** active only when master is on | Collapse into master | Users may want silent-recognition mode (highlights without bubbles); preserving this dial costs one checkbox and keeps the useful shape |
 
-**Two supersessions** — updated in the cross-reference table in DESIGN.md:
+**Post-Phase-H follow-ups (user field testing 2026-04-22):**
+- Drag-to-select now also opens the in-page bubble (previously drag only routed to the side panel). Implemented as `clickTranslator.showSelection({text, anchor, context})` called from the mouseup handler.
+- Click-to-translate path now also dispatches `SELECTION_CHANGED` so the side panel's Translate tab mirrors bubble lookups and Phase F's auto-switch fires for clicks, not just drags.
+
+**Three supersessions** — updated in the cross-reference table in DESIGN.md:
 - D43 supersedes D21 (sticky tab intent)
 - D51 supersedes D34 (OPEN_WORD semantics)
+- D52 supersedes D40 (PanelHeader click-to-translate toggle)
 
 ---
 
@@ -316,30 +327,51 @@ user clicks [Save] in bubble
 
 ---
 
-## 10. Open Questions (for implementation time)
+## 10. Open Questions (resolved at build time)
 
-1. **Bubble Save button localization:** "Save" / "保存" text or icon-only `💾`? Leaning label-text to match sidepanel Translate tab convention.
-2. **Click-to-translate toggle icon:** which Material/Lucide glyph? Placement detail, decided at implementation.
-3. **Bubble-to-panel visual parity:** should the bubble reuse exact `tokens.ts` colors (accent / ink / border) or get its own slightly different palette for visual distinction? Leaning exact parity.
-
-These do not block design approval and will be resolved during build.
+1. **Bubble Save button localization:** "Save" / "保存" text or icon-only `💾`? **Resolved:** label-text ("Save" / "保存"), matches side panel Translate tab convention.
+2. **Click-to-translate toggle icon:** which Material/Lucide glyph? **Obsolete:** Phase G's PanelHeader toggle was removed by D56; master switch lives on the FAB instead.
+3. **Bubble-to-panel visual parity:** should the bubble reuse exact `tokens.ts` colors or get its own palette? **Resolved:** exact parity — bubble and FAB both import from `src/sidepanel/tokens.ts`.
 
 ---
 
-## 11. Implementation Plan (handoff)
+## 11. Implementation Plan (status)
 
-Once this document is approved, implementation follows in order:
+All phases shipped green (typecheck + tests + build) as of 2026-04-22.
 
-1. **Phase A — Translator migration** (no UX change): move translator to `background/translate.ts`, add `TRANSLATE_REQUEST`/`RESULT`, update sidepanel to use them. Ship green build.
-2. **Phase B — Word boundary utility** (`wordBoundary.ts` + unit tests). Wire into existing mouseup path for drag-snap.
-3. **Phase C — Bubble module** (`bubble.ts`, `bubbleStyles.ts`). Initially only triggered by manual test invocation; verify Shadow DOM rendering in isolation.
-4. **Phase D — Click pipeline** (`clickTranslate.ts`), connect bubble. Verify filter chain on Reddit / Medium / Twitter.
-5. **Phase E — Saved-word integration**: `highlight.ts` click handler reroutes to bubble. `OPEN_WORD` → `FOCUS_WORD_IN_VOCAB` rename.
-6. **Phase F — D43 sidepanel change**: remove sticky-intent guard.
-7. **Phase G — Toggle in PanelHeader**, wire `click_to_translate` setting.
-8. **Phase H — Manual test sweep** against §9 checklists.
+| Phase | Scope | Status |
+|---|---|---|
+| A | Translator migration to `background/translate.ts`; `TRANSLATE_REQUEST`/`RESULT` messages | ✅ shipped |
+| B | `wordBoundary.ts` + 15 vitest cases; drag-snap wired into mouseup | ✅ shipped |
+| C | `bubble.ts` + `bubbleStyles.ts` (closed Shadow DOM) | ✅ shipped |
+| D | `clickTranslate.ts` filter chain + caret→word; bubble connected | ✅ shipped |
+| E | Saved-word bubble variant; `FOCUS_WORD_IN_VOCAB` rename | ✅ shipped |
+| F | Remove D21 sticky-intent; selection unconditionally forces Translate tab | ✅ shipped |
+| G | *(Obsolete — superseded by Phase I per D56.)* PanelHeader `click_to_translate` toggle shipped, then removed | ⚠️ reverted |
+| H | Manual smoke sweep (`docs/v1-1-smoke-results.md`); two field-test fixes (drag-bubble + click-side `SELECTION_CHANGED` sync) | ✅ shipped |
+| I | **Master-switch FAB (D52–D57):** `src/content/fab.ts`; `learning_mode_enabled` in Settings; paused banner on Translate tab; Phase G toggle removed; `IconBtn` component + `.dr-icon-btn--active` CSS purged as unused; new brand icon at `icons/icon{16,48,128}.png` matching the sidepanel `LogoMark` | ✅ shipped |
 
-Each phase should typecheck + build green before the next starts.
+**Deferred to v1.2** (out of v1.1 scope, tracked here for memory):
+- Per-domain FAB hide
+- Draggable FAB position
+- Jump-from-vocab-list-to-source-URL (original F4)
+- Playwright-extension e2e test setup
+
+---
+
+## 12. Submission log
+
+| Date | Event |
+|---|---|
+| 2026-04-22 | v2.0.0 `dist/` zipped as `dualread-v2.0.0.zip` (91 KB, 23 files) — manifest v2.0.0, new brand icons, FAB, in-page bubble, drag-snap, background translator |
+| 2026-04-22 | Store listing copy rewritten in `store-listing.md` (zh-CN primary + en) to reflect v2.0 features; Gemini-fallback copy removed (planned but not yet implemented — `src/background/translate.ts:76-77` surfaces `rate_limit` on 429 instead) |
+| 2026-04-22 | Screenshots regenerated at 1280×800 (Chrome Web Store strict 16:10 requirement); originally rendered at 1200×800 which would have failed upload validation |
+| 2026-04-22 | `privacy-policy.html` touched up for v2.0 (bubble + FAB in content-script scope); privacy-practices form filled per `store-listing.md` guide, "remote code" declared **not in use** (only JSON + CSS + fonts leave the extension, no executable remote code) |
+| 2026-04-22 | Package uploaded to Chrome Web Store Developer Dashboard; **awaiting review** |
+
+**Known debt at submission time** (see also `project_dualread_pending.md` in user memory):
+- R3 SPA highlight benchmark never measured on Twitter/X or YouTube comments — fallback plan (viewport-only scanning) not triggered because we have no data to trigger it from.
+- Full v1.1 smoke checklist at `docs/v1-1-smoke-results.md` only spot-checked (Reddit FAB visibility on 2026-04-22); other regression items not walked through.
 
 ---
 
