@@ -691,4 +691,37 @@ Final disposition: **APPROVED WITH REVISIONS APPLIED**.
 
 ---
 
+## Appendix B — v1.1 Iteration (2026-04)
+
+After v1 shipped to the Chrome Web Store, hands-on testing surfaced four UX
+pain points around the selection → translate → save loop. A full redesign
+was run through the brainstorming skill and locked on 2026-04-22.
+
+**What changes in v1.1**
+
+1. **Dual-channel selection** — click on any word triggers single-word translation; drag ≥ 2 words triggers phrase translation; partial drags auto-snap to word boundaries (fixes "w Phase" → "new Phase"). Filter chain (9 rules) excludes links, buttons, inputs, code blocks, and modifier-key clicks.
+2. **In-page Shadow DOM bubble** — renders brief translation + Save on the host page itself, anchored below the selection. Dismisses on click-outside / ESC / new selection / scroll. Full translation context and note editing remain in the side panel.
+3. **Saved-word bubble variant** — clicking an already-highlighted word shows translation + user note + "打开详情" link (no Save, since already saved). `OPEN_WORD` renamed to `FOCUS_WORD_IN_VOCAB` (D51 supersedes part of D34).
+4. **Auto-switch to translate tab on selection** — D43 supersedes D21. The sticky-intent guard is removed; any fresh selection unconditionally brings the side panel to the translate tab.
+5. **Translator moves to background worker** — centralizes API calls and session cache; bubble and side panel both pull from the same source.
+
+**Decisions** — D38 through D51 are documented in full, with alternatives
+and rationale, in [`docs/v1-1-feedback.md`](docs/v1-1-feedback.md), along
+with the complete architecture, component split, data flows, error handling,
+edge cases, and manual test checklists. That file is the authoritative
+v1.1 spec; this appendix is a pointer and change summary only.
+
+**Deferred to v1.2**
+- Jump-from-vocab-list-to-source-URL (user request F4, non-urgent)
+- Playwright-extension e2e test setup
+
+**Cross-reference table**
+
+| Decision | Status |
+|---|---|
+| D21 (sticky-intent on tab switch) | Superseded by D43 |
+| D34 (`OPEN_WORD` message semantics) | Partially superseded by D51 (rename + semantics narrowed) |
+
+---
+
 *End of design document.*

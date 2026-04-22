@@ -18,8 +18,9 @@ import {
   SESSION_KEY_PENDING_FOCUS,
 } from "../shared/messages";
 import { DEFAULT_SETTINGS } from "../shared/types";
-import type { SelectionPayload, TranslateResult } from "../shared/types";
+import type { SelectionPayload } from "../shared/types";
 import { clearVocab, deleteWord, getVocab, saveWord } from "./vocab";
+import { handleTranslate } from "./translate";
 
 chrome.runtime.onInstalled.addListener(async () => {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -30,76 +31,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
-// ───── Translation ───────────────────────────────────────────
-// Error codes bubble to the side panel and get mapped to i18n strings there.
-//  "network"   — fetch failed (offline, DNS, CORS, etc.)
-//  "rate_limit"— Google returned 429
-//  "http_<n>"  — any other non-2xx
-//  "parse"     — non-JSON / unexpected shape
-type TranslateErrorCode = "network" | "rate_limit" | "parse" | `http_${number}`;
-
-class TranslateError extends Error {
-  code: TranslateErrorCode;
-  constructor(code: TranslateErrorCode) {
-    super(code);
-    this.code = code;
-    this.name = "TranslateError";
-  }
-}
-
-function cacheKey(text: string, target: string): string {
-  return `t:${target}:${text.trim().toLowerCase()}`;
-}
-
-async function getCached(text: string, target: string): Promise<TranslateResult | null> {
-  const key = cacheKey(text, target);
-  const res = await chrome.storage.session.get(key);
-  return (res[key] as TranslateResult | undefined) ?? null;
-}
-
-async function setCached(text: string, target: string, result: TranslateResult): Promise<void> {
-  await chrome.storage.session.set({ [cacheKey(text, target)]: result });
-}
-
-async function translateWithGoogle(
-  text: string,
-  target: "zh-CN" | "en"
-): Promise<TranslateResult> {
-  const url =
-    `https://translate.googleapis.com/translate_a/single` +
-    `?client=gtx&sl=auto&tl=${target}&dt=t&q=${encodeURIComponent(text)}`;
-
-  let resp: Response;
-  try {
-    resp = await fetch(url);
-  } catch {
-    throw new TranslateError("network");
-  }
-  if (resp.status === 429) throw new TranslateError("rate_limit");
-  if (!resp.ok) throw new TranslateError(`http_${resp.status}`);
-
-  try {
-    const data = (await resp.json()) as [Array<[string, ...unknown[]]>, unknown, string];
-    const translated = data[0].map((item) => item[0]).join("");
-    const detectedLang = data[2] || "auto";
-    return { translated, detectedLang };
-  } catch {
-    throw new TranslateError("parse");
-  }
-}
-
-async function handleTranslate(text: string, target: "zh-CN" | "en"): Promise<MessageResponse> {
-  try {
-    const cached = await getCached(text, target);
-    if (cached) return { ok: true, data: cached };
-    const data = await translateWithGoogle(text, target);
-    await setCached(text, target, data);
-    return { ok: true, data };
-  } catch (e) {
-    const code = e instanceof TranslateError ? e.code : "parse";
-    return { ok: false, error: code };
-  }
-}
+// Translation moved to ./translate.ts in v1.1 Phase A. The router below
+// just dispatches TRANSLATE_REQUEST → handleTranslate.
 
 // ───── Selection relay ───────────────────────────────────────
 async function handleSelectionChanged(payload: SelectionPayload): Promise<void> {
@@ -111,8 +44,10 @@ async function handleSelectionChanged(payload: SelectionPayload): Promise<void> 
     });
 }
 
-// ───── Highlight click → panel focus ─────────────────────────
-// Triggered by the content-script click handler. Two jobs:
+// ───── Vocab-focus request → panel ───────────────────────────
+// Triggered by the content script when the user explicitly asks to see a
+// word's vocab details — in v1 this fired on any highlight click; in v1.1
+// it fires only from the bubble's "打开详情" link (D51). Two jobs:
 //   1. Stash the word_key in session storage so a freshly-opened side panel
 //      can hydrate onto the Vocab tab at that word (late-open path).
 //   2. Attempt to open the side panel for the originating tab, then broadcast
@@ -123,11 +58,11 @@ async function handleSelectionChanged(payload: SelectionPayload): Promise<void> 
 // succeeds in enough cases to matter (toolbar already opened once, chain
 // preserved, etc.); when it fails we silently fall back to "panel opens next
 // time the user clicks the toolbar, and picks up the pending word then".
-async function handleOpenWord(word: string, tabId: number | undefined): Promise<void> {
-  const word_key = word.trim().toLowerCase();
-  if (!word_key) return;
+async function handleFocusWordInVocab(word_key: string, tabId: number | undefined): Promise<void> {
+  const key = word_key.trim().toLowerCase();
+  if (!key) return;
 
-  await chrome.storage.session.set({ [SESSION_KEY_PENDING_FOCUS]: word_key });
+  await chrome.storage.session.set({ [SESSION_KEY_PENDING_FOCUS]: key });
 
   if (tabId !== undefined) {
     try {
@@ -138,7 +73,7 @@ async function handleOpenWord(word: string, tabId: number | undefined): Promise<
   }
 
   chrome.runtime
-    .sendMessage({ type: "FOCUS_WORD", word_key })
+    .sendMessage({ type: "FOCUS_WORD", word_key: key })
     .catch(() => {
       /* no panel listening right now — session storage carries the intent */
     });
@@ -165,7 +100,7 @@ function respondWith(
 chrome.runtime.onMessage.addListener(
   (msg: Message, sender, sendResponse: (r: MessageResponse) => void) => {
     switch (msg.type) {
-      case "TRANSLATE":
+      case "TRANSLATE_REQUEST":
         handleTranslate(msg.text, msg.target ?? "zh-CN").then(sendResponse);
         return true;
 
@@ -178,11 +113,11 @@ chrome.runtime.onMessage.addListener(
         });
         return false;
 
-      case "OPEN_WORD":
-        // Content-script click on a `.dr-hl`. sender.tab.id is the page that
+      case "FOCUS_WORD_IN_VOCAB":
+        // Bubble's "打开详情" link (v1.1). sender.tab.id is the page that
         // originated the click; we need it to route sidePanel.open() at the
         // correct window.
-        void handleOpenWord(msg.word, sender.tab?.id);
+        void handleFocusWordInVocab(msg.word_key, sender.tab?.id);
         return false;
 
       case "SHOW_SELECTION":

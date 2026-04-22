@@ -80,7 +80,12 @@ export function useSelection(target: "zh-CN" | "en" = "zh-CN") {
       };
       setState({ data: placeholder, loading: true, error: null });
 
-      const resp = await sendMessage({ type: "TRANSLATE", text: payload.text, target });
+      const resp = await sendMessage({
+        type: "TRANSLATE_REQUEST",
+        text: payload.text,
+        target,
+        requester: "sidepanel",
+      });
       if (cancelled || my !== token) return;
 
       if (resp.ok) {

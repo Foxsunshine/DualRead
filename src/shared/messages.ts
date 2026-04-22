@@ -1,10 +1,26 @@
 import type { SelectionPayload, TranslateResult, VocabWord } from "./types";
 
 export type Message =
-  | { type: "TRANSLATE"; text: string; target?: "zh-CN" | "en" }
+  // v1.1 rename: `TRANSLATE` → `TRANSLATE_REQUEST`. The old name predated the
+  // bubble/sidepanel split and read as a command; the new name reads as a
+  // one-entry RPC that either surface can fire. `requester` is optional
+  // metadata used only for logs/telemetry (if we ever add telemetry) — the
+  // response contract is identical regardless of caller.
+  | {
+      type: "TRANSLATE_REQUEST";
+      text: string;
+      target?: "zh-CN" | "en";
+      requester?: "sidepanel" | "bubble";
+    }
   | ({ type: "SELECTION_CHANGED" } & SelectionPayload)
   | ({ type: "SHOW_SELECTION" } & SelectionPayload)
-  | { type: "OPEN_WORD"; word: string }
+  // v1.1 rename of the content→background trigger (D51, supersedes D34).
+  // The old name `OPEN_WORD` implied "open the side panel at this word".
+  // With v1.1's saved-word bubble, the side panel is opened only on
+  // explicit "打开详情" clicks; the sole job of this message is "the
+  // panel should focus this word in the vocab tab". `FOCUS_WORD`
+  // (below) remains the background → panel broadcast counterpart.
+  | { type: "FOCUS_WORD_IN_VOCAB"; word_key: string }
   | { type: "FOCUS_WORD"; word_key: string }
   | { type: "SAVE_WORD"; word: VocabWord }
   | { type: "DELETE_WORD"; word_key: string }

@@ -10,6 +10,11 @@ export interface Settings {
   ui_language: Lang;
   first_run_completed: boolean;
   level: Level;
+  // v1.1: when true, a plain click on a word in the page opens the
+  // translation bubble. Users can flip this off per-site when link-dense
+  // pages (doc sites, comment threads with many `<a>`) make the filter
+  // chain feel intrusive. Default on — the whole point of the iteration.
+  click_to_translate: boolean;
 }
 
 // Canonical default settings. Consumed by:
@@ -24,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ui_language: "zh-CN",
   first_run_completed: false,
   level: "B1",
+  click_to_translate: true,
 };
 
 export interface VocabWord {

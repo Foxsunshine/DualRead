@@ -36,8 +36,11 @@ All cross-context communication goes through `src/shared/messages.ts`. Discrimin
 
 ## Build & verify
 
+The user's machine only has Node 20 installed — don't prepend `nvm use 20`
+(or `source ~/.nvm/nvm.sh`) to build/test commands; just run them directly.
+
 ```sh
-nvm use 20
 npm run typecheck   # tsc -b --noEmit
 npm run build       # tsc -b && vite build
+npm test            # vitest run
 ```

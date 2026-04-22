@@ -3,9 +3,11 @@
 // Responsible for:
 //   - Composing the per-feature hooks (settings, selection, vocab) and turning
 //     them into one active screen.
-//   - Routing tab clicks → screen, respecting "user intent sticks" (if the
-//     user explicitly opened Vocab, don't auto-yank them to Translate when a
-//     new selection arrives).
+//   - Routing tab clicks → screen. v1.1 (D43, supersedes D21): a fresh
+//     selection always forces the Translate tab — the old "sticky intent"
+//     behavior (don't yank the user away from Vocab) turned out to be a
+//     complaint, not a feature. Users expect a new lookup to land where
+//     the result actually is.
 //   - Wiring Save / Edit note / Delete / Export / Clear to the vocab hook.
 
 import { useEffect, useMemo, useState } from "react";
@@ -55,40 +57,37 @@ function formatSyncedAt(ts: number | null): string {
 export function App() {
   const { settings, loaded, update } = useSettings();
   const [screen, setScreen] = useState<Screen | null>(null);
-  const [userTab, setUserTab] = useState<Tab | null>(null);
   const vocab = useVocab();
   const selection = useSelection(settings.ui_language === "en" ? "en" : "zh-CN");
   const focus = useFocusWord();
   const syncStatus = useSyncStatus();
 
-  // Auto-switch to Translate when a fresh selection arrives — but only if the
-  // user hasn't explicitly parked themselves on another tab. `userTab` records
-  // that intent; `null` means "no explicit choice, follow the data".
+  // D43 (supersedes D21): a fresh selection always pulls the user to the
+  // Translate tab, no matter where they were. v1's "sticky intent" check
+  // (don't yank users off Vocab) was a pain point — users expected a new
+  // lookup to surface its own result, not sit silently behind another tab.
   useEffect(() => {
     if (!selection.data) return;
-    if (userTab && userTab !== "translate") return;
     setScreen("translate");
-  }, [selection.data, userTab]);
+  }, [selection.data]);
 
-  // Highlight-click / FOCUS_WORD intent overrides everything else — the user
-  // just asked to see a specific word. Jump straight to Vocab and mark that
-  // as the sticky tab so incidental selections don't yank them back.
+  // FOCUS_WORD_IN_VOCAB intent — the user clicked "打开详情" in the bubble
+  // (Phase E) or clicked a highlight in the v1 flow. Jump to the Vocab tab
+  // so the focused word becomes visible. Depends on focusTick so re-clicking
+  // the same highlight re-triggers scroll-into-view in the Vocab screen.
   useEffect(() => {
     if (!focus.focusedKey) return;
-    setUserTab("vocab");
     setScreen("vocab");
-    // We intentionally depend on focusTick, not just focusedKey, so clicking
-    // the same highlight twice still re-triggers the scroll-into-view in
-    // the Vocab screen below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus.focusedKey, focus.focusTick]);
-
-  if (!loaded) return null;
 
   const S = DR_STRINGS[settings.ui_language];
 
   // Derive the active screen: explicit user choice wins, else fall back to
   // "Welcome on first run, Translate otherwise".
+  // Note: computed unconditionally (before the `loaded` early-return below)
+  // so the hook call count stays stable across renders — React error #310
+  // happens the instant an early return hides a later useMemo from one pass.
   const activeScreen: Screen =
     screen ??
     (settings.first_run_completed
@@ -100,7 +99,6 @@ export function App() {
   const activeTab = tabForScreen(activeScreen);
 
   const handleTabChange = (tab: Tab) => {
-    setUserTab(tab);
     if (tab === "translate") setScreen(selection.data ? "translate" : "translate-empty");
     else if (tab === "vocab") setScreen(vocab.words.length ? "vocab" : "vocab-empty");
     else setScreen("settings");
@@ -201,7 +199,6 @@ export function App() {
             onAddNote={() => {
               // "Add note" is a shortcut to the Vocab tab where inline
               // editing lives; no separate modal in v1.
-              setUserTab("vocab");
               setScreen("vocab");
             }}
           />
@@ -236,10 +233,23 @@ export function App() {
     }
   }, [activeScreen, S, settings, selection, vocab, update, isSaved, syncedAtLabel, focus.focusedKey, focus.focusTick, syncStatus]);
 
+  // Gate the first render until settings hydrate. Placed AFTER all hooks so
+  // the hook count is identical on both the pre-load and post-load passes —
+  // otherwise React throws error #310 on the transition.
+  if (!loaded) return null;
+
   return (
     <div className="dr-root" data-screen={activeScreen} lang={settings.ui_language}>
       {activeScreen !== "welcome" && activeTab && (
-        <PanelHeader S={S} activeTab={activeTab} onTabChange={handleTabChange} />
+        <PanelHeader
+          S={S}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          clickToTranslate={settings.click_to_translate}
+          onToggleClickTranslate={() =>
+            update({ click_to_translate: !settings.click_to_translate })
+          }
+        />
       )}
       {activeScreen === "welcome" ? content : <main className="dr-main">{content}</main>}
     </div>

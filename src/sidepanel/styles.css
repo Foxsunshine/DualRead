@@ -51,21 +51,12 @@ button { font-family: inherit; }
   overflow: hidden;
 }
 
-/* Screens: show only the one matching [data-screen] on root */
-.dr-screen { display: none; }
-.dr-root[data-screen="welcome"] .dr-screen[data-screen="welcome"],
-.dr-root[data-screen="translate-empty"] .dr-screen[data-screen="translate-empty"],
-.dr-root[data-screen="translate"] .dr-screen[data-screen="translate"],
-.dr-root[data-screen="vocab-empty"] .dr-screen[data-screen="vocab-empty"],
-.dr-root[data-screen="vocab"] .dr-screen[data-screen="vocab"],
-.dr-root[data-screen="settings"] .dr-screen[data-screen="settings"] {
-  display: flex;
-}
-
-.dr-root[data-screen="welcome"] .dr-header,
-.dr-root[data-screen="welcome"] .dr-main {
-  display: none;
-}
+/* Screens. React's <App> renders exactly one at a time via a switch, so we
+ * don't need the old "all-screens-in-DOM, CSS-toggle" selectors. Every screen
+ * section uses flex-direction internally (column list / stacked empty-state),
+ * so the base rule sets display:flex and the per-screen blocks below layer on
+ * padding, alignment, etc. */
+.dr-screen { display: flex; }
 
 .dr-main {
   flex: 1;
@@ -124,6 +115,14 @@ button { font-family: inherit; }
   padding: 0;
 }
 .dr-icon-btn:hover { background: var(--dr-border-soft); }
+/* Toggle-on state: used by PanelHeader's click-to-translate switch (Phase G).
+ * Accent background + accent ink makes "engaged" visually distinct from a
+ * hover highlight — hover is transient, active persists. */
+.dr-icon-btn--active {
+  background: var(--dr-accent-soft);
+  color: var(--dr-accent-ink);
+}
+.dr-icon-btn--active:hover { background: var(--dr-accent-soft); }
 
 /* ───── Tabs ───── */
 .dr-tabs { display: flex; gap: 0; }

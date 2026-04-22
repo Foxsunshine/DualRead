@@ -66,6 +66,8 @@ interface Strings {
   clearData: string;
   clearDataHint: string;
   savedToast: string;
+  clickTranslateTooltipOn: string;
+  clickTranslateTooltipOff: string;
 }
 
 export const DR_STRINGS: Record<Lang, Strings> = {
@@ -136,6 +138,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     clearData: "清除所有数据",
     clearDataHint: "删除所有保存的词和设置。此操作不可撤销。",
     savedToast: "已保存",
+    clickTranslateTooltipOn: "点词翻译：已开启（点击关闭）",
+    clickTranslateTooltipOff: "点词翻译：已关闭（点击开启）",
   },
   en: {
     appName: "DualRead",
@@ -204,6 +208,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     clearData: "Clear all data",
     clearDataHint: "Delete all saved words and settings. This cannot be undone.",
     savedToast: "Saved",
+    clickTranslateTooltipOn: "Click-to-translate: on (click to turn off)",
+    clickTranslateTooltipOff: "Click-to-translate: off (click to turn on)",
   },
 };
 

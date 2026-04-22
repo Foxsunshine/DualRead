@@ -53,6 +53,14 @@ const REBUILD_THROTTLE_MS = 500;
 
 export type HighlightStyle = "underline" | "background";
 
+// v1.1: instead of sendMessage-ing OPEN_WORD when a highlight is clicked,
+// the module invokes this callback and lets the orchestrator decide what
+// to do. Passing the element along lets the caller compute a bounding
+// rect for bubble anchoring without a second DOM walk.
+export interface HighlighterOptions {
+  onHighlightClick?: (args: { word_key: string; element: HTMLElement }) => void;
+}
+
 export interface Highlighter {
   /** Replace the active vocab set; triggers a throttled full re-scan. */
   setVocab(keys: string[]): void;
@@ -193,7 +201,8 @@ function unwrapAll(root: ParentNode = document.body): void {
   });
 }
 
-export function createHighlighter(): Highlighter {
+export function createHighlighter(options: HighlighterOptions = {}): Highlighter {
+  const { onHighlightClick } = options;
   let matcher: RegExp | null = null;
   let vocabKeys: string[] = [];
   let enabled = false;
@@ -215,22 +224,22 @@ export function createHighlighter(): Highlighter {
   let lastRebuildAt = 0;
 
   // The click handler is installed once and stays installed — it's cheap and
-  // the side panel flow is the whole point of the highlight. Capture phase so
+  // the saved-word UX is the whole point of the highlight. Capture phase so
   // host handlers can't stopPropagation away before we see the event.
+  //
+  // v1.1 (D51): we no longer send OPEN_WORD/FOCUS_WORD_IN_VOCAB ourselves.
+  // Instead we invoke `onHighlightClick` and let the orchestrator show the
+  // in-page bubble. The only side effects we still own are preventDefault
+  // + stopPropagation (so the containing `<a>` doesn't navigate).
   const onClick = (e: MouseEvent): void => {
     const target = e.target as Element | null;
     const hl = target?.closest?.(`span.${HIGHLIGHT_CLASS}`) as HTMLElement | null;
     if (!hl) return;
-    const word = hl.dataset.word;
-    if (!word) return;
-    // Intercept the click so the user doesn't accidentally follow the
-    // containing link / trigger the host page's own handler. The word UX
-    // (open panel on word) takes precedence per DESIGN.md D21.
+    const word_key = hl.dataset.word;
+    if (!word_key) return;
     e.preventDefault();
     e.stopPropagation();
-    chrome.runtime.sendMessage({ type: "OPEN_WORD", word }).catch(() => {
-      /* background may be waking up; user can click again */
-    });
+    onHighlightClick?.({ word_key, element: hl });
   };
 
   const scheduleMoFlush = (): void => {
