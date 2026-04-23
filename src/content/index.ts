@@ -13,6 +13,7 @@
 import { DEFAULT_SETTINGS } from "../shared/types";
 import type { Settings, VocabWord, Lang } from "../shared/types";
 import { STORAGE_PREFIX_VOCAB } from "../shared/messages";
+import { isHighlightable } from "../shared/highlightable";
 import { createHighlighter } from "./highlight";
 import { snapOffsetsToWord } from "./wordBoundary";
 import { createBubble } from "./bubble";
@@ -267,7 +268,13 @@ async function readVocabKeys(): Promise<string[]> {
     // `word_key` is the canonical lowercased dedupe key. Fall back to the
     // storage key suffix if an older record is missing the field (defensive;
     // shouldn't happen in practice).
-    keys.push(word?.word_key ?? k.slice(STORAGE_PREFIX_VOCAB.length));
+    const key = word?.word_key ?? k.slice(STORAGE_PREFIX_VOCAB.length);
+    // Sentences and non-Latin entries are stored but not fed to the matcher:
+    // `\b...\b` on long/non-Latin text never yields useful hits, and keeping
+    // them out of the regex keeps alternation cost bounded. See
+    // shared/highlightable.ts for the full rationale.
+    if (!isHighlightable(key)) continue;
+    keys.push(key);
   }
   return keys;
 }

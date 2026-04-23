@@ -71,6 +71,59 @@ export function Settings({
         />
       </div>
 
+      <div className="dr-settings__group">
+        <div className="dr-settings__group-title">{S.feedbackTitle}</div>
+        <ul className="dr-contact">
+          <li className="dr-contact__row">
+            <a
+              className="dr-contact__link"
+              href="mailto:jiang.ch2022@gmail.com?subject=DualRead"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="1.5" y="3" width="11" height="8" rx="1.5" />
+                <path d="M2 4l5 4 5-4" />
+              </svg>
+              <span>jiang.ch2022@gmail.com</span>
+            </a>
+          </li>
+          <li className="dr-contact__row">
+            <a
+              className="dr-contact__link"
+              href="https://github.com/Foxsunshine/DualRead/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5.5 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8.5" />
+                <path d="M8 2h4v4" />
+                <path d="M6.5 7.5L12 2" />
+              </svg>
+              <span>github.com/Foxsunshine/DualRead/issues</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
       <div className="dr-settings__spacer" />
 
       <div className="dr-danger">

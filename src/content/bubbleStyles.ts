@@ -139,18 +139,31 @@ export function bubbleCSS(): string {
   color: ${DR_TOKENS.sage};
 }
 
-.dr-bubble__link {
+/* Detail button in the saved-word variant: icon-only, replaces the old
+   text link. Sized ~28×28 (16px glyph + 6px padding each side) so it sits
+   a hair taller than the Save/Saved button but with align-items: center
+   on the actions row the mismatch is visually absorbed. Hover gives a
+   soft background chip so it reads as "clickable" without needing a border. */
+.dr-bubble__detail {
   all: unset;
   cursor: pointer;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 6px;
   color: ${DR_TOKENS.accentInk};
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
 }
-.dr-bubble__link:focus-visible {
+.dr-bubble__detail:hover {
+  background: ${DR_TOKENS.borderSoft};
+  color: ${DR_TOKENS.accent};
+}
+.dr-bubble__detail:focus-visible {
   outline: 2px solid ${DR_TOKENS.accent};
   outline-offset: 1px;
-  border-radius: 2px;
 }
 
 .dr-bubble__loading {

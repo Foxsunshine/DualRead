@@ -301,10 +301,24 @@ export function createBubble(): BubbleHandle {
     actions.appendChild(saveBtn);
 
     if (state.showDetailLink && onDetail) {
+      // Icon-only button (Bucket 1 / v2.0.1): a line-art open book standing in
+      // for the old "打开详情 / View details" text link. Accessible name comes
+      // from `title` + `aria-label` — both set so hover tooltips work on desktop
+      // and assistive tech still gets a label.
       const detail = document.createElement("button");
       detail.type = "button";
-      detail.className = "dr-bubble__link";
-      detail.textContent = strings.detail;
+      detail.className = "dr-bubble__detail";
+      detail.title = strings.detail;
+      detail.setAttribute("aria-label", strings.detail);
+      detail.innerHTML =
+        '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ' +
+        'stroke="currentColor" stroke-width="1.4" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M2 3.5h4.5a1.5 1.5 0 0 1 1.5 1.5v7.5"/>' +
+        '<path d="M14 3.5H9.5A1.5 1.5 0 0 0 8 5"/>' +
+        '<path d="M2 3.5v9h5a1 1 0 0 1 1 1"/>' +
+        '<path d="M14 3.5v9H9a1 1 0 0 0-1 1"/>' +
+        "</svg>";
       detail.addEventListener("click", onDetail);
       actions.appendChild(detail);
     }

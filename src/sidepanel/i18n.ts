@@ -65,6 +65,10 @@ interface Strings {
   syncRetry: string;
   clearData: string;
   clearDataHint: string;
+  // Contact block rendered near the bottom of Settings (above the danger zone).
+  // Two rows: email (mailto:) + GitHub Issues (target=_blank). Title is the
+  // only localized string — the address and URL are rendered verbatim.
+  feedbackTitle: string;
   savedToast: string;
   // Pause-state banner shown on the empty Translate screen when the FAB's
   // learning-mode switch is off. Side-panel flows still work — the banner
@@ -140,6 +144,7 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncRetry: "重试",
     clearData: "清除所有数据",
     clearDataHint: "删除所有保存的词和设置。此操作不可撤销。",
+    feedbackTitle: "反馈 / Bug 报告",
     savedToast: "已保存",
     learningModePausedTitle: "学习模式已暂停",
     learningModePausedBody: "网页上的点词翻译、划词翻译和高亮都已关闭。点击页面右下角的悬浮按钮即可重新开启。",
@@ -210,6 +215,7 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncRetry: "Retry",
     clearData: "Clear all data",
     clearDataHint: "Delete all saved words and settings. This cannot be undone.",
+    feedbackTitle: "Feedback / Bug report",
     savedToast: "Saved",
     learningModePausedTitle: "Learning mode paused",
     learningModePausedBody: "Click-to-translate, drag-to-translate, and page highlights are off. Click the floating button at the bottom-right of any page to turn them back on.",

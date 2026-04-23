@@ -439,6 +439,13 @@ button { font-family: inherit; }
 .dr-vocab__count { color: var(--dr-ink-soft); font-weight: 500; }
 .dr-vocab__spacer { flex: 1; }
 .dr-vocab__sort {
+  /* `<button>` UA defaults (gray border + light background) leak through on
+     Chrome unless we reset them — the neighboring .dr-vocab__export resets
+     via its own border/background rules, this one has to do it explicitly. */
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
   color: var(--dr-accent);
   font-weight: 600;
   display: flex;
@@ -746,6 +753,41 @@ button { font-family: inherit; }
 @keyframes dr-sync-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
+}
+
+/* Feedback / Bug report block in Settings. Two rows: email (mailto:) +
+   GitHub Issues (external). Flat unstyled list; each link is a row-height
+   flex item with a 14px leading icon. Hover lifts the bg to match the
+   subtle interactive affordance used elsewhere in the panel. */
+.dr-contact {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dr-contact__row { margin: 0; }
+.dr-contact__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+  color: var(--dr-ink-soft);
+  font-size: 12px;
+  text-decoration: none;
+  word-break: break-all;
+  transition: background 120ms ease, color 120ms ease;
+}
+.dr-contact__link:hover {
+  background: var(--dr-border-soft);
+  color: var(--dr-accent-ink);
+}
+.dr-contact__link:focus-visible {
+  outline: 2px solid var(--dr-accent);
+  outline-offset: 1px;
 }
 
 .dr-settings__spacer { height: 20px; }
