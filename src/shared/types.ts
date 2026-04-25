@@ -7,12 +7,20 @@
 // missed), and write the native-form label in Settings + Welcome.
 export type Lang = "zh-CN" | "en" | "ja" | "fr";
 
-// All currently valid Lang values, in display order. Used by:
-//  - the Settings dropdown options
+// Single source of truth for the ordered list of supported languages and
+// their native-form labels. Consumed by:
+//  - the Settings dropdown <option> rendering
 //  - the Welcome onboarding radio group
 //  - isValidLang() runtime guard below
-// Keep in sync with the union type above.
-export const VALID_LANGS: readonly Lang[] = ["zh-CN", "en", "ja", "fr"];
+// Native-form labels are intentionally NOT translated through DR_STRINGS:
+// every language picker by convention shows each language in its own form
+// so a user landed on a foreign UI can find their way home.
+export const LANG_OPTIONS: readonly { id: Lang; nativeLabel: string }[] = [
+  { id: "zh-CN", nativeLabel: "中文" },
+  { id: "en", nativeLabel: "English" },
+  { id: "ja", nativeLabel: "日本語" },
+  { id: "fr", nativeLabel: "Français" },
+];
 
 // Runtime guard for storage reads. The Lang union is a TypeScript-only
 // constraint; chrome.storage values are `unknown` until parsed, so any code
@@ -22,7 +30,7 @@ export const VALID_LANGS: readonly Lang[] = ["zh-CN", "en", "ja", "fr"];
 // downgrade) gets a fallback to "en" instead of a runtime crash inside
 // the i18n dict lookup.
 export function isValidLang(x: unknown): x is Lang {
-  return typeof x === "string" && (VALID_LANGS as readonly string[]).includes(x);
+  return typeof x === "string" && LANG_OPTIONS.some((o) => o.id === x);
 }
 
 export type HighlightStyle = "underline" | "background";

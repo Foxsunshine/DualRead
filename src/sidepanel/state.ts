@@ -31,8 +31,18 @@ export function useSettings() {
   // Optimistic update: flip React state first so the UI is instant, then
   // fire-and-forget the storage write. We don't await — the content script
   // and any other panel instance pick up the change via storage.onChanged.
+  //
+  // Bail when the patch is a no-op against current state. Without this,
+  // clicking the already-active option in any settings picker (e.g. tapping
+  // the auto-detected Welcome lang card to "confirm" it) still fires
+  // `chrome.storage.local.set`, which broadcasts to every content script
+  // on every open tab — each re-reads settings and reapplies derived state.
+  // Real fan-out for a no-op click.
   const update = useCallback((patch: Partial<Settings>) => {
     setLocal((prev) => {
+      const keys = Object.keys(patch) as (keyof Settings)[];
+      const changed = keys.some((k) => prev[k] !== patch[k]);
+      if (!changed) return prev;
       const next = { ...prev, ...patch };
       void chrome.storage.local.set({ [LOCAL_KEY_SETTINGS]: next });
       return next;

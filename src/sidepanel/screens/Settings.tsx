@@ -1,6 +1,6 @@
 import type { Strings } from "../i18n";
 import type { HighlightStyle, Lang, Settings as SettingsType } from "../../shared/types";
-import { isValidLang } from "../../shared/types";
+import { LANG_OPTIONS } from "../../shared/types";
 import type { SyncState, SyncStatus } from "../useSyncStatus";
 import { Toggle } from "../components/Toggle";
 
@@ -71,18 +71,13 @@ export function Settings({
           id="dr-lang-select"
           className="dr-lang-select"
           value={settings.ui_language}
-          onChange={(e) => {
-            const v = e.target.value;
-            // Type-guarded write: <select> values are stringly typed; reject
-            // any drift via the runtime guard before persisting. Should be
-            // unreachable since we control the option list, but cheap.
-            if (isValidLang(v)) onChange({ ui_language: v as Lang });
-          }}
+          onChange={(e) => onChange({ ui_language: e.target.value as Lang })}
         >
-          <option value="zh-CN" lang="zh-CN">{S.zh}</option>
-          <option value="en" lang="en">{S.en}</option>
-          <option value="ja" lang="ja">{S.ja}</option>
-          <option value="fr" lang="fr">{S.fr}</option>
+          {LANG_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id} lang={o.id}>
+              {o.nativeLabel}
+            </option>
+          ))}
         </select>
       </div>
 

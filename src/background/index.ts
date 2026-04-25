@@ -35,23 +35,33 @@ import { handleTranslate } from "./translate";
 // a pure function (see shared/i18nDetect.ts) so the only async bit is
 // the storage.set itself.
 chrome.runtime.onInstalled.addListener(async (details) => {
-  await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-
   if (details.reason === "install") {
     // Fresh install: seed Settings with detected lang. `getUILanguage()`
     // returns a BCP-47 tag like "fr-FR" / "ja" / "zh-TW"; detectInitialLang
     // folds region variants into the four supported product langs and
-    // falls back to "en" for anything we don't ship.
-    const detected = detectInitialLang(chrome.i18n.getUILanguage());
-    await chrome.storage.local.set({
-      settings: { ...DEFAULT_SETTINGS, ui_language: detected },
-    });
+    // falls back to "en" for anything we don't ship. The try/catch is
+    // belt-and-suspenders against a hypothetical chrome.i18n throw —
+    // detectInitialLang itself can't throw (pure string ops on any input).
+    let detected: typeof DEFAULT_SETTINGS.ui_language = "en";
+    try {
+      detected = detectInitialLang(chrome.i18n.getUILanguage());
+    } catch {
+      /* leave detected = "en" — international-friendly fallback */
+    }
+    // setPanelBehavior and the settings seed are independent — fan out.
+    await Promise.all([
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }),
+      chrome.storage.local.set({
+        settings: { ...DEFAULT_SETTINGS, ui_language: detected },
+      }),
+    ]);
     return;
   }
 
   // Existing user (update / chrome_update / shared_module_update): only
   // seed defaults if storage is empty (e.g. CLEAR_DATA was just run); never
   // overwrite a user-chosen ui_language on an upgrade path.
+  await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   const { settings } = await chrome.storage.local.get("settings");
   if (!settings) {
     await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Strings } from "../i18n";
 import type { Lang, Level } from "../../shared/types";
+import { LANG_OPTIONS } from "../../shared/types";
 import { LogoMark } from "../components/LogoMark";
 
 interface Props {
@@ -21,16 +22,6 @@ const LEVELS: { id: Level; labelKey: keyof Strings }[] = [
   { id: "B1", labelKey: "levelB1" },
   { id: "B2", labelKey: "levelB2" },
   { id: "C1", labelKey: "levelC1" },
-];
-
-// v2.4 D2 + D6: native-form labels, never translated through DR_STRINGS.
-// Order matches the Settings dropdown so users see the same affordance
-// across both surfaces.
-const LANGS: { id: Lang; nativeLabel: string }[] = [
-  { id: "zh-CN", nativeLabel: "中文" },
-  { id: "en", nativeLabel: "English" },
-  { id: "ja", nativeLabel: "日本語" },
-  { id: "fr", nativeLabel: "Français" },
 ];
 
 export function Welcome({
@@ -77,22 +68,22 @@ export function Welcome({
           aria-labelledby="dr-welcome-lang-prompt"
           className="dr-welcome__langs"
           onKeyDown={(e) => {
-            const idx = LANGS.findIndex((l) => l.id === currentLang);
+            const idx = LANG_OPTIONS.findIndex((l) => l.id === currentLang);
             if (idx < 0) return;
             let next = idx;
             if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-              next = (idx + 1) % LANGS.length;
+              next = (idx + 1) % LANG_OPTIONS.length;
             } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-              next = (idx - 1 + LANGS.length) % LANGS.length;
+              next = (idx - 1 + LANG_OPTIONS.length) % LANG_OPTIONS.length;
             } else {
               return;
             }
             e.preventDefault();
             setUserHasPickedYet(true);
-            onLangChange(LANGS[next].id);
+            onLangChange(LANG_OPTIONS[next].id);
           }}
         >
-          {LANGS.map((l) => {
+          {LANG_OPTIONS.map((l) => {
             const active = currentLang === l.id;
             return (
               <button
@@ -102,13 +93,10 @@ export function Welcome({
                 aria-checked={active}
                 tabIndex={active ? 0 : -1}
                 lang={l.id}
-                className={[
-                  "dr-lang-card",
-                  active ? "dr-lang-card--active" : "",
-                  active && !userHasPickedYet ? "dr-lang-card--auto-detected" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={
+                  `dr-lang-card${active ? " dr-lang-card--active" : ""}` +
+                  (active && !userHasPickedYet ? " dr-lang-card--auto-detected" : "")
+                }
                 onClick={() => {
                   setUserHasPickedYet(true);
                   onLangChange(l.id);

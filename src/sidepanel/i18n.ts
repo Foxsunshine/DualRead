@@ -57,16 +57,6 @@ interface Strings {
   highlightUnderline: string;
   highlightBackground: string;
   uiLanguage: string;
-  // Native-form labels for the four supported UI languages. Used by both
-  // the Settings dropdown and the Welcome onboarding picker so a user
-  // landed on a UI in a language they don't speak can still find their
-  // own. Each label is in its OWN language (中文 / English / 日本語 /
-  // Français), not in the current UI language — this is the convention
-  // every major app follows for the language picker affordance.
-  zh: string;
-  en: string;
-  ja: string;
-  fr: string;
   syncStatus: string;
   synced: string;
   syncing: string;
@@ -149,10 +139,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "下划线",
     highlightBackground: "背景色",
     uiLanguage: "界面语言",
-    zh: "简体中文",
-    en: "English",
-    ja: "日本語",
-    fr: "Français",
     syncStatus: "同步状态",
     synced: "已同步",
     syncing: "正在同步…",
@@ -225,10 +211,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "Underline",
     highlightBackground: "Background",
     uiLanguage: "Interface language",
-    zh: "简体中文",
-    en: "English",
-    ja: "日本語",
-    fr: "Français",
     syncStatus: "Sync status",
     synced: "Synced",
     syncing: "Syncing…",
@@ -306,10 +288,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "下線",
     highlightBackground: "背景",
     uiLanguage: "表示言語",
-    zh: "简体中文",
-    en: "English",
-    ja: "日本語",
-    fr: "Français",
     syncStatus: "同期ステータス",
     synced: "同期済み",
     syncing: "同期中…",
@@ -389,10 +367,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "Souligné",
     highlightBackground: "Arrière-plan",
     uiLanguage: "Langue de l'interface",
-    zh: "简体中文",
-    en: "English",
-    ja: "日本語",
-    fr: "Français",
     syncStatus: "État de synchronisation",
     synced: "Synchronisé",
     syncing: "Synchronisation…",
