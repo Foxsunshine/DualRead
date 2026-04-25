@@ -1,4 +1,4 @@
-import type { SelectionPayload, TranslateResult, VocabWord } from "./types";
+import type { Lang, SelectionPayload, TranslateResult, VocabWord } from "./types";
 
 export type Message =
   // v1.1 rename: `TRANSLATE` → `TRANSLATE_REQUEST`. The old name predated the
@@ -9,7 +9,11 @@ export type Message =
   | {
       type: "TRANSLATE_REQUEST";
       text: string;
-      target?: "zh-CN" | "en";
+      // v2.3: target widened from the v1.1 "zh-CN" | "en" literal to the
+      // full 4-language Lang union. Google MT supports all 12 cross-pairs
+      // via sl=auto + tl=…; this just lets the bubble / sidepanel ask
+      // for the user's currently-selected ui_language.
+      target?: Lang;
       requester?: "sidepanel" | "bubble";
     }
   | ({ type: "SELECTION_CHANGED" } & SelectionPayload)

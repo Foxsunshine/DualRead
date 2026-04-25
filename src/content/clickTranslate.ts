@@ -461,7 +461,11 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       sendMessage({
         type: "TRANSLATE_REQUEST",
         text: click.word,
-        target: "zh-CN",
+        // v2.3: target tracks current ui_language (D1 binding).
+        // `click.lang` is captured at click time from `getSettings()`,
+        // so a settings change between click and translate doesn't
+        // race the in-flight request.
+        target: click.lang,
         requester: "bubble",
       }),
     ]);

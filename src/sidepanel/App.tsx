@@ -58,7 +58,8 @@ export function App() {
   const { settings, loaded, update } = useSettings();
   const [screen, setScreen] = useState<Screen | null>(null);
   const vocab = useVocab();
-  const selection = useSelection(settings.ui_language === "en" ? "en" : "zh-CN");
+  // v2.3: translate target tracks ui_language directly — D1 binding.
+  const selection = useSelection(settings.ui_language);
   const focus = useFocusWord();
   const syncStatus = useSyncStatus();
 
