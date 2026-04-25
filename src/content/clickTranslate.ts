@@ -76,6 +76,7 @@ const BUBBLE_STRINGS: Record<Lang, BubbleStrings> = {
     loading: "翻译中…",
     retry: "重试",
     del: "删除",
+    alreadyInYourLang: "已经是中文了",
   },
   en: {
     save: "Save",
@@ -85,6 +86,7 @@ const BUBBLE_STRINGS: Record<Lang, BubbleStrings> = {
     loading: "Translating…",
     retry: "Retry",
     del: "Delete",
+    alreadyInYourLang: "Already in your language",
   },
   ja: {
     save: "保存",
@@ -94,6 +96,7 @@ const BUBBLE_STRINGS: Record<Lang, BubbleStrings> = {
     loading: "翻訳中…",
     retry: "再試行",
     del: "削除",
+    alreadyInYourLang: "すでに日本語です",
   },
   fr: {
     save: "Enregistrer",
@@ -103,6 +106,7 @@ const BUBBLE_STRINGS: Record<Lang, BubbleStrings> = {
     loading: "Traduction…",
     retry: "Réessayer",
     del: "Supprimer",
+    alreadyInYourLang: "Déjà dans votre langue",
   },
 };
 
@@ -497,7 +501,35 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     // and unknowns into one of our 4 supported langs — same prefix
     // logic the install-time detect uses, so storage stays consistent.
     const sourceLang = detectInitialLang(data?.detectedLang ?? "");
+
+    // v2.3 D6: same-lang short-circuit. Google's "translation" of
+    // (e.g.) French → French is just an echo of the input; rendering
+    // it as a translation looks broken. Show the alreadyInLang hint
+    // bubble instead. We only short-circuit when Google actually
+    // detected a real lang (not "auto") AND it matches the user's
+    // target — otherwise we fall through to the normal translated path.
+    if (
+      data?.detectedLang &&
+      data.detectedLang !== "auto" &&
+      sourceLang === click.lang
+    ) {
+      renderAlreadyInLang(click);
+      return;
+    }
     renderTranslated(click, translation, saved, sourceLang);
+  }
+
+  function renderAlreadyInLang(click: CurrentClick): void {
+    const strings = bubbleStrings(click.lang);
+    bubble.show({
+      anchor: click.anchor,
+      state: { kind: "alreadyInLang", word: click.word },
+      strings,
+      onClose: () => {
+        if (active?.token === click.token) active = null;
+        onClickBubbleClose?.();
+      },
+    });
   }
 
   function renderTranslated(

@@ -273,5 +273,17 @@ export function bubbleCSS(): string {
   color: ${DR_TOKENS.red};
   font-size: 12px;
 }
+
+/* v2.3 D6: muted hint shown when source === target_lang. Smaller and
+ * lighter than .dr-bubble__translation so it visually reads as a
+ * status note rather than an actual translation. inkSoft (not ink)
+ * keeps it within the WCAG AA contrast band against the bubble bg
+ * (~5.4:1 measured) — same token used by other secondary bubble copy. */
+.dr-bubble__already {
+  margin-top: 4px;
+  color: ${DR_TOKENS.inkSoft};
+  font-size: 12px;
+  font-style: italic;
+}
 `;
 }

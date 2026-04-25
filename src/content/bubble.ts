@@ -25,7 +25,12 @@ import { bubbleCSS } from "./bubbleStyles";
 export type BubbleState =
   | { kind: "loading"; word: string }
   | { kind: "translated"; word: string; translation: string; saved: boolean; note?: string; showDetailLink?: boolean }
-  | { kind: "error"; word: string; message: string };
+  | { kind: "error"; word: string; message: string }
+  // v2.3 D6: when the user reads text in their own native language
+  // (Google detected source === target_lang), don't pretend to translate
+  // — repeating the original as the "translation" looks broken. Show a
+  // muted hint instead so the bubble still acknowledges the click.
+  | { kind: "alreadyInLang"; word: string };
 
 // Anchor rect — caller provides the bounding box we should position next
 // to. Usually the selection's `getBoundingClientRect()` or the clicked
@@ -50,6 +55,9 @@ export interface BubbleStrings {
   // this same string (icon-only button — screen readers need the name from
   // somewhere). English "Delete" / 中文 "删除".
   del: string;
+  // v2.3 D6: shown in the alreadyInLang state when the bubble decides not
+  // to translate (source already matches target). Localized in each lang.
+  alreadyInYourLang: string;
 }
 
 export interface BubbleShowOptions {
@@ -312,6 +320,17 @@ export function createBubble(): BubbleHandle {
         actions.appendChild(retry);
         root.appendChild(actions);
       }
+      return;
+    }
+
+    // v2.3 D6: same-source-and-target — no translation, just a hint.
+    // The header already showed the word; we add a single muted line
+    // so the bubble still has a visible body and isn't an empty box.
+    if (state.kind === "alreadyInLang") {
+      const hint = document.createElement("div");
+      hint.className = "dr-bubble__already";
+      hint.textContent = strings.alreadyInYourLang;
+      root.appendChild(hint);
       return;
     }
 
