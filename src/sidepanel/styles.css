@@ -220,6 +220,73 @@ button { font-family: inherit; }
   margin-bottom: 24px;
   text-wrap: pretty;
 }
+/* v2.4: native-language picker on the Welcome screen. Styled to match
+ * the existing level picker (.dr-welcome__levels / .dr-level) so the
+ * two onboarding controls read as siblings, but with two visual axes
+ * the level group lacks: a `--auto-detected` state (dashed outline,
+ * disappears on first user click) and `aria-checked` true / false
+ * (the underlying button is role="radio", not a plain toggle).
+ *
+ * Contrast (P0 a11y from multi-agent review): active-state text uses
+ * --dr-accent-ink (#A04A2E) on --dr-accent-soft (rgba(217, 119, 87,
+ * 0.12)) — measured ratio ≈ 5.6:1 against the light --dr-bg-raised
+ * underlay. Comfortably above WCAG AA 4.5:1 for normal text. */
+.dr-welcome__lang-group { margin-bottom: 18px; }
+.dr-welcome__lang-prompt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dr-ink-soft);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.dr-welcome__langs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.dr-lang-card {
+  /* v2.4 P0 a11y: do NOT use `all: unset`. Reset only what we need so
+   * keyboard focus, button semantics, and disabled handling stay intact.
+   * A button without proper reset still gets browser-default Enter/Space
+   * activation, which `all: unset` strips on some browsers. */
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 10px 12px;
+  border: 1px solid var(--dr-border);
+  background: var(--dr-bg-raised);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dr-ink);
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.dr-lang-card:hover {
+  border-color: var(--dr-ink-muted);
+}
+.dr-lang-card:focus-visible {
+  outline: 2px solid var(--dr-accent);
+  outline-offset: 1px;
+}
+.dr-lang-card--active {
+  border-color: var(--dr-accent);
+  background: var(--dr-accent-soft);
+  font-weight: 600;
+  color: var(--dr-accent-ink);
+}
+/* Pre-confirmation state (P1-S5): the active option is auto-detected
+ * but the user hasn't acknowledged it yet. Dashed border tells the
+ * eye "not your final pick — confirm or change." Removed by Welcome's
+ * local React state on first click. Keep the dashed style on top of
+ * the active border-color so the dashed pattern shows through in the
+ * accent color. */
+.dr-lang-card--auto-detected {
+  border-style: dashed;
+}
+
 .dr-welcome__level-group { margin-bottom: 20px; }
 .dr-welcome__level-prompt {
   font-size: 12px;

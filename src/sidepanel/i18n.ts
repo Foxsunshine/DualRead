@@ -11,6 +11,12 @@ interface Strings {
   welcomeBody: string;
   welcomeCta: string;
   welcomeSkip: string;
+  // v2.4: prompt above the 4-language picker on the Welcome screen.
+  // Tells the user the picker has already been auto-filled from their
+  // browser's UI locale, but they can override. Wording mentions
+  // "auto-detected" so the dashed-outline visual cue (.dr-lang-card--
+  // auto-detected) has a textual counterpart for screen-reader users.
+  welcomeLangPrompt: string;
   levelPrompt: string;
   levelA2: string;
   levelB1: string;
@@ -98,6 +104,7 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "在任何网页上选中一个不认识的词，DualRead 会把它翻译给你，再帮你把它保存到生词本。之后这个词每次出现，都会被轻轻标出来，让你重新认识它。",
     welcomeCta: "开始使用",
     welcomeSkip: "先看看设置",
+    welcomeLangPrompt: "你的母语（已自动检测，可修改）",
     // P1-S4 (multi-agent review): clarify the CEFR scale is for English
     // specifically, since v2.3 will let users pick non-EN target_lang where
     // CEFR doesn't apply. Full fix (hide / rename for non-EN learners)
@@ -175,6 +182,7 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "Select any word you don't know on any webpage. DualRead translates it and saves it for you. Next time it appears anywhere online, it'll be gently marked so you can recognize it again.",
     welcomeCta: "Get started",
     welcomeSkip: "See settings first",
+    welcomeLangPrompt: "Your native language (auto-detected, change if needed)",
     // P1-S4: CEFR scale is EN-specific; v2.3+ allows non-EN target_lang.
     // Full fix deferred to v2.5.
     levelPrompt: "Your English level (CEFR)",
@@ -257,6 +265,7 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "ウェブページで知らない単語を選択すると、DualRead が翻訳して単語帳に保存します。次に同じ単語が現れたとき、そっとマークするので、もう一度出会えます。",
     welcomeCta: "始める",
     welcomeSkip: "設定を見る",
+    welcomeLangPrompt: "母国語（自動検出済み、変更可）",
     levelPrompt: "あなたの英語レベル（CEFR）",
     levelA2: "初級 · A2",
     levelB1: "初中級 · B1",
@@ -337,6 +346,7 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "Sélectionnez n'importe quel mot inconnu sur n'importe quelle page web. DualRead le traduit et l'ajoute à votre liste de vocabulaire. La prochaine fois qu'il apparaîtra, il sera discrètement marqué pour vous le faire reconnaître.",
     welcomeCta: "Commencer",
     welcomeSkip: "Voir les paramètres",
+    welcomeLangPrompt: "Votre langue maternelle (détectée auto, modifiable)",
     levelPrompt: "Votre niveau d'anglais (CEFR)",
     levelA2: "Débutant · A2",
     levelB1: "Pré-intermédiaire · B1",

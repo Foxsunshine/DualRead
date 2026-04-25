@@ -162,7 +162,9 @@ export function App() {
           <Welcome
             S={S}
             level={settings.level}
+            currentLang={settings.ui_language}
             onLevelChange={(level) => update({ level })}
+            onLangChange={(ui_language) => update({ ui_language })}
             onStart={() => {
               update({ first_run_completed: true });
               setScreen("translate-empty");
