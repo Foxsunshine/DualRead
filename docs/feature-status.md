@@ -66,14 +66,17 @@
 - **商店元数据 4 语化** — `_locales/ja/` + `_locales/fr/`，让 CWS 商店页母语显示扩展名 / 简介。⚠️ 改 `_locales/` 触发 CWS full re-review（7-21 天）
 - **Welcome 视口 < 600px 不许滚动** — manual smoke 检查项
 
-### v1.x 一直 deferred 的小事
+### v1.x 一直 deferred 的小事（2026-04-25 v3 启动前清理）
+
+仍想做（低优先级，post-v3）：
 
 - **Per-domain FAB 隐藏** — 用户在某些站点想关 FAB
 - **可拖动 FAB 位置**
-- **生词列表点击跳到来源 URL**
-- **Playwright 端到端测试设施**
-- **Gemini fallback** — Google MT 429 时降级
-- **R3 SPA 高亮性能基准** — Twitter/X、YouTube comments 没测过
+
+整合到 v3 一起做：
+
+- **生词列表点击跳到来源 URL** — v3 vocab 后端同步会影响跳转逻辑，
+  跟 backend 整合一起做更清晰
 
 ---
 
