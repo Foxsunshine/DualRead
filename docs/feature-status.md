@@ -1,7 +1,8 @@
 # DualRead 功能现状
 
-> 最后更新：2026-04-25。当前 main HEAD 的功能盘点 + 未来版本路线。
-> 下一次大改后 patch 这个文件，让它一直反映"现在是什么样"。
+> 最后更新：2026-04-25（v2.3.0 实装完毕）。当前 main HEAD 的功能盘点
+> + 未来版本路线。下一次大改后 patch 这个文件，让它一直反映"现在是
+> 什么样"。
 
 ---
 
@@ -9,7 +10,7 @@
 
 ### v1 / v2.0 / v2.1 — 划词翻译 + 生词本（已上 CWS Review，等审核）
 
-- **划词翻译** — 任意网页选词 / 拖选短语，弹气泡显示中文翻译
+- **划词翻译** — 任意网页选词 / 拖选短语，弹气泡显示译文
 - **生词本** — 保存遇到的生词，按时间或字母排序、搜索、添加笔记
 - **自动高亮** — 已保存的词在所有网页里自动加下划线 / 背景色
 - **CSV 导出** — 导出所有生词为 CSV，可导入 Anki
@@ -32,45 +33,30 @@
 - **写 storage 时去重** — 点已选中的语言不再重复写 storage
 - **isValidLang 类型守卫** — 防 storage 数据脏
 
----
+### v2.3.0 — 翻译方向 4 语任意对（main 已 commit，未 push）
 
-## ⚠️ 已知体验问题（用户反馈，未修）
+> Brainstorm doc: `docs/v2-3-target-lang-brainstorm.md`
 
-- **翻译方向写死成中文** — UI 选 ja / fr 后划词翻译出来仍是中文（应该跟着 UI 走）
-- **Welcome 仍有 level (CEFR) 选择** — 用户认为不需要 / 跟非英语学习者无关
-
-➡️ **以上两个一起属于 v2.3.0 范围**
+- **翻译方向跟 UI 语言走** — 选 fr UI → 划词 → 法语翻译；4×4 = 12 语对全开
+- **同语对显示提示** — 读自己母语时气泡显"已经是中文了 / Already in your language / すでに日本語です / Déjà dans votre langue"，不重复翻
+- **Settings 翻译方向 caption** — dropdown 下加小字"翻译方向：自动检测 → 中文"
+- **VocabWord schema 扩展** — 新 `source_lang` / `target_lang` / `translation` 字段；`zh` / `en` 旧字段保留向前兼容
+- **老数据自动 migrate** — onInstalled `reason === "update"` 跑一次双写
+- **5 个 P0 安全护栏** — version flag 在 storage.sync（多设备）/ 单条 8KB cap / SW eviction `await` / fields optional / empty-zh skip
+- **CSV 导出加 source_lang / target_lang 列** — 旧 `zh` 列保留兼容
+- **Welcome 拿掉 CEFR level 选择** — 4 语用户不限于英语学习
+- **bubble alreadyInLang 状态** — 新 React state kind + `.dr-bubble__already` 样式
+- **8 个 vitest 用例 for migration** — 覆盖 idempotent / multi-device / 8KB / empty-zh / version flag advance
 
 ---
 
 ## ⏳ 待实装
 
-### v2.3.0 — 翻译方向 4 语任意对（brainstorm 已 lock，未实装）
-
-> Brainstorm doc: `docs/v2-3-target-lang-brainstorm.md`
-
-- **翻译方向跟 UI 语言走** — `target_lang = ui_language`，4×4 = 12 个语对
-- **同语对自动跳过翻译** — 用户读自己母语时显示"已是您的语言"提示而不重复翻
-- **Settings 加翻译方向 caption** — 小字说明"翻译方向：自动 → 中文"
-- **VocabWord schema 加字段** — `source_lang` / `target_lang` / `translation`
-- **老数据自动 migrate** — onInstalled `reason === "update"` 一次性双写新字段，旧 `zh` / `en` 字段保留兼容
-- **CSV export 加列** — 导出生词时包含 source_lang / target_lang
-- **Welcome 拿掉 level 选择**（用户反馈）—— 跟 v2.3 product 改造一起做最合理
-- **气泡 i18n 错误信息** — 已经在 v2.2 做了
-
-⚠️ **5 个 P0 修复必须做**（multi-agent review 锁定）：
-1. `vocab_schema_version` 放 chrome.storage.sync（多设备并发安全）
-2. 单条写入前检查 8KB 上限
-3. onInstalled handler `await` 整个 migration（防 service worker 中途死掉）
-4. schema 字段在 commit 1 设为 optional（避免中间 checkout 工作树崩）
-5. 老 vocab 中 `zh` 为空的不迁移（防 empty-string 污染）
-
 ### v2.5.0 — 收尾 backlog
 
 > 没规划成正式 brainstorm，零碎修补
 
-- **Welcome level 改"目标语水平"** —— 如果保留 level 字段，标签语义化（仅 EN 学习者才有 CEFR）；如已在 v2.3 拿掉就跳过
-- **同语对加"翻译 anyway"按钮** — 古文 / 文白对译需求
+- **同语对加"翻译 anyway"按钮** — 古文 / 文白对译需求；i18n key + UI hook 已在 v2.3 brainstorm §8.2 reserve
 - **zh-TW 单独支持** — 目前 zh-TW 回退到 zh-CN（简体）
 - **商店元数据 4 语化** — `_locales/ja/` + `_locales/fr/`，让 CWS 商店页母语显示扩展名 / 简介
 - **Welcome 视口 < 600px 不许滚动** — manual smoke 检查项
@@ -117,7 +103,7 @@
 | 项 | 阻塞了什么 | 何时解 |
 |---|---|---|
 | v2.0.0 还在 CWS Review（since 2026-04-22） | v2.2 / v2.3 / v2.5 都不能上架，等 v2.0 过审 | 7-21 天正常窗口 |
-| v2.3 schema migration 风险 | v2.3 实装前要先跑 storage 用量检查脚本 | 实装第一步做 |
+| v2.3 schema migration storage 用量未实测 | v2.3 push 上 CWS 之前最好让用户跑一次 sync 用量检查（`chrome.storage.sync.getBytesInUse(null)`），确认离 100KB 还远 | 实测 1 分钟 |
 | Anthropic / OpenAI hard cap 未设 | Phase 1 W1 之前必须设 | Phase 1 启动那天 |
 
 ---
@@ -126,9 +112,10 @@
 
 按优先级：
 
-1. **手动跑 v2.2.0 manual smoke**（`v2-2-i18n-brainstorm.md` §6.8 + §G register）—— 验证翻车没有
-2. **push 10 个 commit 到 GitHub** —— 备份 + ext-ci.yml 第一次跑
-3. 决定 **v2.3 现在做还是等 CWS**：
-   - 现在做：用户看着 4 种 UI 但翻译方向死写中文，体验割裂
-   - 等 CWS：先稳；v2.0 / v2.1 / v2.2 至少分别走完队列
-4. v2.3 实装时连带 Welcome 拿掉 level
+1. **重新 load 扩展跑 manual smoke**（`v2-2-i18n-brainstorm.md` §6.8 + 12 语对扩展抽查）—— 验证 v2.2 / v2.3 真没翻车
+2. **push 18 个 commit 到 GitHub** —— 备份 + ext-ci.yml 第一次跑
+3. **决定 release 节奏**：
+   - **方案 A**：等 v2.0 过审 → 直接发 v2.3.0（含 v2.2 + v2.3 全部内容），跳过 v2.2.0 中间发布
+   - **方案 B**：等 v2.0 过审 → 发 v2.2.0 → 等 v2.2 过审 → 发 v2.3.0（两次队列）
+   - 方案 A 排队成本最小，但一次性发 ~720 LOC 给 CWS 审，风险叠在一起
+4. **v3 启动**：进入 Phase 1 W1（FastAPI 骨架），career narrative 推进
