@@ -2,6 +2,17 @@
 
 A Chrome side-panel extension for Chinese speakers learning English. Save unknown words as you browse, and watch them auto-highlight every time they appear on any page.
 
+> **Repo layout** — DualRead is split across three repos as of v3.1
+> ([ADR-A20](docs/v3-1-architecture.md)):
+>
+> - **`Foxsunshine/DualRead`** (this repo, public) — Chrome MV3 extension
+> - **`Foxsunshine/DualRead-web`** (public) — Next.js Landing + Admin (Phase 5+)
+> - **`Foxsunshine/DualRead-backend`** (private) — FastAPI backend, prompts, eval
+>
+> Code is **read** from all three; **secrets never** — see
+> `.pre-commit-config.yaml` and `docs/runbooks/key-leak.md` (in the
+> backend repo) for the secret-defense layers per ADR-A21.
+
 ## How it works
 
 1. **Select** any English text on any webpage — the side panel shows a Chinese translation, the surrounding sentence, and where you found it.
