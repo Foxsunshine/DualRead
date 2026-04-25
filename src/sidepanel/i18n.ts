@@ -81,6 +81,20 @@ interface Strings {
   syncErrorDetail: (code: string) => string;
   syncedAt: (t: string) => string;
   syncRetry: string;
+  // v3 W4 — Account section in Settings. Signed-out state shows the
+  // pitch + CTA; signed-in state shows the user's email and a sign-out
+  // button. Strings stay short because the Account block is rendered
+  // above the existing sync indicator and the visual budget is tight.
+  accountTitle: string;
+  accountSignedOutHint: string;
+  accountSignInBtn: string;
+  accountSignOutBtn: string;
+  accountSigningIn: string;
+  accountSignInError: string;
+  // Function-typed because the email is interpolated. Localizes the
+  // surrounding phrasing (e.g. "Signed in as {email}" / "已登录：{email}")
+  // without the panel having to concatenate strings on its own.
+  accountSignedInAs: (email: string) => string;
   clearData: string;
   clearDataHint: string;
   // Contact block rendered near the bottom of Settings (above the danger zone).
@@ -165,6 +179,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncErrorDetail: (code) => `错误：${code}（正在重试）`,
     syncedAt: (t) => `最后同步 ${t}`,
     syncRetry: "重试",
+    accountTitle: "账户",
+    accountSignedOutHint: "登录后即可在多个设备间同步你的生词本。",
+    accountSignInBtn: "使用 Google 登录",
+    accountSignOutBtn: "退出登录",
+    accountSigningIn: "登录中…",
+    accountSignInError: "登录失败，请稍后再试。",
+    accountSignedInAs: (email) => `已登录：${email}`,
     clearData: "清除所有数据",
     clearDataHint: "删除所有保存的词和设置。此操作不可撤销。",
     feedbackTitle: "反馈 / Bug 报告",
@@ -239,6 +260,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncErrorDetail: (code) => `Error: ${code} (retrying)`,
     syncedAt: (t) => `Last synced ${t}`,
     syncRetry: "Retry",
+    accountTitle: "Account",
+    accountSignedOutHint: "Sign in to sync your vocab across devices.",
+    accountSignInBtn: "Sign in with Google",
+    accountSignOutBtn: "Sign out",
+    accountSigningIn: "Signing in…",
+    accountSignInError: "Sign-in failed. Please try again.",
+    accountSignedInAs: (email) => `Signed in as ${email}`,
     clearData: "Clear all data",
     clearDataHint: "Delete all saved words and settings. This cannot be undone.",
     feedbackTitle: "Feedback / Bug report",
@@ -318,6 +346,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncErrorDetail: (code) => `エラー: ${code}（再試行中）`,
     syncedAt: (t) => `最終同期 ${t}`,
     syncRetry: "再試行",
+    accountTitle: "アカウント",
+    accountSignedOutHint: "ログインすると、複数のデバイスで単語帳を同期できます。",
+    accountSignInBtn: "Google でログイン",
+    accountSignOutBtn: "ログアウト",
+    accountSigningIn: "ログイン中…",
+    accountSignInError: "ログインに失敗しました。後でもう一度お試しください。",
+    accountSignedInAs: (email) => `ログイン中：${email}`,
     clearData: "すべてのデータを削除",
     clearDataHint: "保存したすべての単語と設定を削除します。元に戻せません。",
     feedbackTitle: "フィードバック / バグ報告",
@@ -400,6 +435,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncErrorDetail: (code) => `Erreur : ${code} (nouvelle tentative)`,
     syncedAt: (t) => `Dernière synchronisation : ${t}`,
     syncRetry: "Réessayer",
+    accountTitle: "Compte",
+    accountSignedOutHint: "Connectez-vous pour synchroniser votre vocabulaire entre plusieurs appareils.",
+    accountSignInBtn: "Se connecter avec Google",
+    accountSignOutBtn: "Se déconnecter",
+    accountSigningIn: "Connexion…",
+    accountSignInError: "Échec de la connexion. Veuillez réessayer.",
+    accountSignedInAs: (email) => `Connecté en tant que ${email}`,
     clearData: "Effacer toutes les données",
     clearDataHint: "Supprime tous les mots enregistrés et les paramètres. Cette action est irréversible.",
     feedbackTitle: "Commentaires / Rapport de bug",

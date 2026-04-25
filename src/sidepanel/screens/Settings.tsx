@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import type { Strings } from "../i18n";
 import type { HighlightStyle, Lang, Settings as SettingsType } from "../../shared/types";
 import { LANG_OPTIONS } from "../../shared/types";
+import type { AuthState } from "../../shared/messages";
+import { sendMessage } from "../../shared/messages";
 import type { SyncState, SyncStatus } from "../useSyncStatus";
 import { Toggle } from "../components/Toggle";
 
@@ -88,6 +91,11 @@ export function Settings({
         <div className="dr-settings__caption">
           {S.translateDirectionCaption(settings.ui_language)}
         </div>
+      </div>
+
+      <div className="dr-settings__group">
+        <div className="dr-settings__group-title">{S.accountTitle}</div>
+        <Account S={S} nativeLanguage={settings.ui_language} />
       </div>
 
       <div className="dr-settings__group">
@@ -213,6 +221,110 @@ function labelForState(S: Strings, state: SyncState, pending: number): string {
     default:
       return S.synced;
   }
+}
+
+// Account block. Two render branches:
+//   signed-out — pitch line + "Sign in with Google" button. Click
+//                fires SIGN_IN to the background; while in flight,
+//                button is disabled and labeled "Signing in…".
+//   signed-in  — email line + "Sign out" button. Click fires
+//                SIGN_OUT and refreshes local state to signed-out.
+//
+// Auth state is read once on mount via GET_AUTH_STATE and kept in
+// local React state. We don't subscribe to chrome.storage changes
+// because the only mutators are this component itself and the
+// CLEAR_DATA flow (which reloads the panel) — no missed updates.
+//
+// Sign-in errors stay local: we don't surface a 401-vs-network
+// distinction to the user because the practical advice is the same
+// ("try again"), and showing the raw status code wouldn't help.
+interface AccountProps {
+  S: Strings;
+  nativeLanguage: Lang;
+}
+
+function Account({ S, nativeLanguage }: AccountProps) {
+  const [state, setState] = useState<AuthState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void sendMessage({ type: "GET_AUTH_STATE" }).then((resp) => {
+      if (!alive) return;
+      if (resp.ok) {
+        setState((resp.data as AuthState) ?? { signedIn: false });
+      } else {
+        // Background unreachable (extension reload mid-render). Treat
+        // as signed-out for display purposes — the next interaction
+        // re-issues the message and resyncs.
+        setState({ signedIn: false });
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function handleSignIn() {
+    setBusy(true);
+    setError(false);
+    const resp = await sendMessage({
+      type: "SIGN_IN",
+      native_language: nativeLanguage,
+    });
+    setBusy(false);
+    if (resp.ok) {
+      setState((resp.data as AuthState) ?? { signedIn: false });
+    } else {
+      setError(true);
+    }
+  }
+
+  async function handleSignOut() {
+    setBusy(true);
+    setError(false);
+    await sendMessage({ type: "SIGN_OUT" });
+    setBusy(false);
+    setState({ signedIn: false });
+  }
+
+  // First render — state is still loading. Render a placeholder so
+  // the section's height doesn't jump when the message resolves.
+  if (state === null) {
+    return <div className="dr-account dr-account--loading" />;
+  }
+
+  if (state.signedIn) {
+    return (
+      <div className="dr-account">
+        <div className="dr-account__email">{S.accountSignedInAs(state.user.email)}</div>
+        <button
+          type="button"
+          className="dr-account__btn dr-account__btn--secondary"
+          onClick={handleSignOut}
+          disabled={busy}
+        >
+          {S.accountSignOutBtn}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dr-account">
+      <div className="dr-account__hint">{S.accountSignedOutHint}</div>
+      <button
+        type="button"
+        className="dr-account__btn dr-account__btn--primary"
+        onClick={handleSignIn}
+        disabled={busy}
+      >
+        {busy ? S.accountSigningIn : S.accountSignInBtn}
+      </button>
+      {error && <div className="dr-account__error">{S.accountSignInError}</div>}
+    </div>
+  );
 }
 
 function SyncIndicator({ S, status, syncedAtLabel, syncedCount }: SyncIndicatorProps) {

@@ -12,7 +12,7 @@
 // in-memory state (translation-in-flight promises, flush timers) must either
 // be recoverable on wake or persisted to chrome.storage.*.
 
-import type { Message, MessageResponse } from "../shared/messages";
+import type { AuthState, Message, MessageResponse } from "../shared/messages";
 import {
   SESSION_KEY_LATEST_SELECTION,
   SESSION_KEY_PENDING_FOCUS,
@@ -20,6 +20,8 @@ import {
 import { DEFAULT_SETTINGS } from "../shared/types";
 import type { SelectionPayload } from "../shared/types";
 import { detectInitialLang } from "../shared/i18nDetect";
+import { getStoredSession } from "../shared/session";
+import { signIn, signOut } from "./auth";
 import { migrateVocabSchemaIfNeeded } from "./vocabMigrate";
 import { clearVocab, deleteWord, getVocab, saveWord } from "./vocab";
 import { handleTranslate } from "./translate";
@@ -92,6 +94,23 @@ async function handleSelectionChanged(payload: SelectionPayload): Promise<void> 
     .catch(() => {
       /* side panel not open — payload persists for next open */
     });
+}
+
+// ───── Auth ──────────────────────────────────────────────────
+// Resolve the current AuthState by reading the persisted session
+// directly. We deliberately do NOT call /auth/me here — a session
+// existence check shouldn't depend on the network. The panel renders
+// based on this snapshot; backend calls re-validate the JWT and
+// surface 401s independently if the session has been invalidated
+// server-side (account delete, token tampering, etc).
+async function readAuthState(): Promise<AuthState> {
+  const session = await getStoredSession();
+  if (!session) return { signedIn: false };
+  return {
+    signedIn: true,
+    user: session.user,
+    expires_at: session.expires_at,
+  };
 }
 
 // ───── Vocab-focus request → panel ───────────────────────────
@@ -190,13 +209,46 @@ chrome.runtime.onMessage.addListener(
         respondWith(getVocab(), sendResponse);
         return true;
 
+      case "SIGN_IN":
+        // The user clicked "Sign in with Google" in the panel. Run
+        // the chrome.identity flow + backend exchange, then reply
+        // with the new AuthState so the panel can immediately
+        // re-render without a follow-up GET_AUTH_STATE round trip.
+        respondWith(
+          signIn(msg.native_language).then(
+            (session): AuthState => ({
+              signedIn: true,
+              user: session.user,
+              expires_at: session.expires_at,
+            }),
+          ),
+          sendResponse,
+        );
+        return true;
+
+      case "SIGN_OUT":
+        respondWith(signOut(), sendResponse);
+        return true;
+
+      case "GET_AUTH_STATE":
+        respondWith(readAuthState(), sendResponse);
+        return true;
+
       case "CLEAR_DATA":
         // Order matters: wipe vocab (clears write buffer + sync), then local
         // (settings + last_synced_at), then session (translation cache), and
         // only after everything is gone do we re-seed default settings so
         // the panel reloads into a clean first-run-completed state.
+        // CLEAR_DATA wipes everything, including the session JWT —
+        // the chrome.storage.local.clear() below covers it. Also
+        // call signOut() so the cached Google access_token is
+        // dropped (otherwise the next sign-in would silently reuse
+        // the same identity from Chrome's identity cache).
         respondWith(
           (async () => {
+            await signOut().catch(() => {
+              /* signOut already swallows non-fatal errors */
+            });
             await clearVocab();
             await chrome.storage.local.clear();
             await chrome.storage.session.clear();

@@ -6,8 +6,15 @@
   "default_locale": "en",
   "homepage_url": "https://github.com/Foxsunshine/DualRead",
   "minimum_chrome_version": "139",
-  "permissions": ["storage", "sidePanel", "contextMenus", "downloads"],
-  "host_permissions": ["https://translate.googleapis.com/*"],
+  "permissions": ["storage", "sidePanel", "contextMenus", "downloads", "identity"],
+  "host_permissions": [
+    "https://translate.googleapis.com/*",
+    "http://localhost:8000/*"
+  ],
+  "oauth2": {
+    "client_id": "REPLACE_ME.apps.googleusercontent.com",
+    "scopes": ["openid", "email", "profile"]
+  },
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",

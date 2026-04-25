@@ -795,6 +795,76 @@ button { font-family: inherit; }
   border-color: var(--dr-accent);
 }
 
+/* ───── Account block (Settings) ─────────────────────────────
+ * Same card chrome as .dr-sync (raised bg + 1px border + 8px radius)
+ * so the two adjacent groups read as a coherent settings stack. The
+ * sign-in button is the primary CTA; sign-out reuses the same card
+ * with a muted secondary button so the destructive-feeling action
+ * doesn't visually compete with Save / Translate elsewhere. */
+.dr-account {
+  padding: 12px;
+  background: var(--dr-bg-raised);
+  border: 1px solid var(--dr-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dr-account--loading {
+  /* Reserve the same approximate height so the section doesn't jump
+   * when the GET_AUTH_STATE message resolves. */
+  min-height: 64px;
+}
+.dr-account__hint,
+.dr-account__email {
+  font-size: 13px;
+  color: var(--dr-ink);
+  line-height: 1.4;
+}
+.dr-account__email {
+  font-weight: 600;
+  /* Long emails (e.g. corporate ones) shouldn't wrap into the button
+   * row — let them ellipsis and rely on the user knowing their own
+   * address. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dr-account__error {
+  font-size: 12px;
+  color: var(--dr-red);
+}
+.dr-account__btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dr-account__btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+.dr-account__btn--primary {
+  background: var(--dr-accent);
+  color: #fff;
+}
+.dr-account__btn--primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.dr-account__btn--secondary {
+  background: transparent;
+  border-color: var(--dr-border);
+  color: var(--dr-ink-muted);
+}
+.dr-account__btn--secondary:hover:not(:disabled) {
+  color: var(--dr-ink);
+  border-color: var(--dr-ink-muted);
+}
+
 .dr-sync {
   padding: 10px 12px;
   background: var(--dr-bg-raised);

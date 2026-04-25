@@ -1,4 +1,13 @@
 import type { Lang, SelectionPayload, TranslateResult, VocabWord } from "./types";
+import type { SessionUser } from "./session";
+
+// Snapshot of "is this device signed in to DualRead, and as whom?"
+// Returned by GET_AUTH_STATE and SIGN_IN. The signed-out variant
+// has no user fields so a discriminated render in the panel can
+// switch on `signedIn` without optional-chaining everywhere.
+export type AuthState =
+  | { signedIn: false }
+  | { signedIn: true; user: SessionUser; expires_at: number };
 
 export type Message =
   // v1.1 rename: `TRANSLATE` → `TRANSLATE_REQUEST`. The old name predated the
@@ -37,10 +46,20 @@ export type Message =
   // straight off `sender.tab.id` (cheap, synchronous). Separate from
   // SELECTION_CHANGED because that one is fire-and-forget and we don't
   // want to weld a response contract onto it.
-  | { type: "GET_TAB_ID" };
+  | { type: "GET_TAB_ID" }
+  // v3.0 W4 — backend auth. The sidepanel never touches chrome.identity
+  // directly because the API is service-worker-blessed but pops a UI;
+  // running it from the background keeps the gesture chain clean and
+  // also keeps the access_token off the panel's call stack so a panel
+  // crash mid-flow can't strand a token in memory. native_language
+  // hint piggybacks on SIGN_IN so the backend's first-signup row
+  // creation has the right value without a follow-up call.
+  | { type: "SIGN_IN"; native_language: Lang }
+  | { type: "SIGN_OUT" }
+  | { type: "GET_AUTH_STATE" };
 
 export type MessageResponse =
-  | { ok: true; data?: TranslateResult | VocabWord[] | null | unknown }
+  | { ok: true; data?: TranslateResult | VocabWord[] | AuthState | null | unknown }
   | { ok: false; error: string };
 
 // `chrome.runtime.sendMessage` can fail in two distinct ways:
