@@ -1,6 +1,6 @@
 # DualRead 功能现状
 
-> 最后更新：2026-04-25（Phase 1 W4 实装完毕，端到端登录可本地测）。
+> 最后更新：2026-04-25（Phase 1 完整收官 — W1-W5 + W5.5 修订）。
 > 当前 main HEAD 的功能盘点 + 未来版本路线。下一次大改后 patch 这个
 > 文件，让它一直反映"现在是什么样"。
 
@@ -22,7 +22,7 @@
 - **caret hit-test 修复**（v2.1）— 点击空白处不再误识别为第一个词
 - **隐私政策页** — `privacy-policy.html`
 
-### v2.2.0 — 4 语 UI（main 已 commit，未 push）
+### v2.2.0 — 4 语 UI（main 已 commit + push，等 CWS 上架窗口）
 
 - **侧栏 UI 4 语** — 中文 / English / 日本語 / Français 全部 ~70 个 UI 字符串
 - **气泡 / Toast / FAB 4 语** — content script 端 ~17 个字符串也覆盖
@@ -33,7 +33,7 @@
 - **写 storage 时去重** — 点已选中的语言不再重复写 storage
 - **isValidLang 类型守卫** — 防 storage 数据脏
 
-### v2.3.0 — 翻译方向 4 语任意对（main 已 commit，未 push）
+### v2.3.0 — 翻译方向 4 语任意对（main 已 commit + push，等 CWS 上架窗口）
 
 > Brainstorm doc: `docs/v2-3-target-lang-brainstorm.md`
 
@@ -131,9 +131,9 @@
 
 | 项 | 阻塞了什么 | 何时解 |
 |---|---|---|
-| v2.0.0 还在 CWS Review（since 2026-04-22） | v2.2 / v2.3 不能上架，等 v2.0 过审 | 7-21 天正常窗口 |
+| v2.0.0 还在 CWS Review（since 2026-04-22） | v2.2 / v2.3 不能上架，等 v2.0 过审 | 7-21 天正常窗口（已 3 天） |
 | v2.3 schema migration storage 用量未实测 | v2.3 push 上 CWS 之前最好让用户跑一次 sync 用量检查（`chrome.storage.sync.getBytesInUse(null)`），确认离 100KB 还远 | 实测 1 分钟 |
-| Anthropic / OpenAI hard cap 未设 | Phase 1 W1 之前必须设 | Phase 1 启动那天 |
+| Railway 冷启动（free tier） | 第一次 cloud sync 可能慢 ~10s（用户感觉不到，best-effort 后台行为）| UptimeRobot 免费 ping `/healthz` |
 
 ---
 
@@ -141,10 +141,12 @@
 
 按优先级：
 
-1. **重新 load 扩展跑 manual smoke**（`v2-2-i18n-brainstorm.md` §6.8 + 12 语对扩展抽查）—— 验证 v2.2 / v2.3 真没翻车
-2. **push 18 个 commit 到 GitHub** —— 备份 + ext-ci.yml 第一次跑
-3. **决定 release 节奏**：
-   - **方案 A**：等 v2.0 过审 → 直接发 v2.3.0（含 v2.2 + v2.3 全部内容），跳过 v2.2.0 中间发布
-   - **方案 B**：等 v2.0 过审 → 发 v2.2.0 → 等 v2.2 过审 → 发 v2.3.0（两次队列）
-   - 方案 A 排队成本最小，但一次性发 ~720 LOC 给 CWS 审，风险叠在一起
-4. **v3 启动**：进入 Phase 1 W1（FastAPI 骨架），career narrative 推进
+1. **手动跑 v2.x manual smoke**（`v2-2-i18n-brainstorm.md` §6.8 + 12 语对抽查 + 登录 + cloud sync）—— v2.0 过审后第一次发 v2.3 / v3.0 之前必须做
+2. **决定下一次 CWS 上架内容**：
+   - **方案 A**：等 v2.0 过审 → 直接发 v3.0.0（含 v2.2 + v2.3 + 后端登录 + cloud sync），一次到位
+   - **方案 B**：等 v2.0 过审 → 发 v2.3.0（无后端）→ 再发 v3.0.0（有后端）
+   - 方案 A 排队成本最小，但代码增量大，CWS reviewer 需要看后端集成
+3. **Phase 2 W6 启动**：LangGraph agent 第一次真正调 Anthropic
+   - 按 `docs/v3-1-latency-analysis.md` Tier 1 优化（O1-O5）从一开始就建对：
+     Node 1 ‖ Node 2 并行 + prompt caching + 砍 rerank（feature flag）+ p95 alert
+4. **CWS reviewer 准备**：v3.0 提审时附带架构说明（Phase 1 backend 是 sync + agent 准备，划词翻译仍然本地，符合"不上传敏感网页内容"原则）

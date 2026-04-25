@@ -475,8 +475,20 @@ content/clickTranslate → SELECTION_CHANGED → background
 
 ### 4.2 登录用户划词 — 完整 Agent 路径
 
+> **修订（2026-04-25，A24）**：以下数据流图把 Node 1 → Node 2 → Node 3
+> 画成串行，是 Phase 2 实施前需要修正的 bug。Node 1 + Node 2 应当
+> **并行 (fan-out / fan-in)**，详见 `docs/v3-1-latency-analysis.md`
+> §3 O1 + ADR A24。Phase 2 W6 实施时直接按并行版本写，本节图保留
+> 作为"原始决策推导"的历史记录。
+>
+> **修订（2026-04-25 / W5.5）**：本节描述的 "登录用户划词" 自动经过
+> agent 路径**已被替换**为 dual-channel 模型：划词永远走本地 Google MT
+> （快路径），agent 路径只有用户**显式**点 "AI 精翻" 才触发。详见
+> `docs/v3-product-design.md`。下面这张图描述的是**当 AI 精翻被
+> 显式触发时**的完整流程，不是默认划词路径。
+
 ```
-content → background → POST {BACKEND}/translate
+content → background → POST {BACKEND}/translate-agent
                        Authorization: Bearer <jwt>
                        Body: { text, source_lang?, target_lang }
                               │
@@ -547,6 +559,14 @@ content → background → POST {BACKEND}/translate
 ```
 
 ### 4.3 RAG 检索内部流程（Node 2 展开）
+
+> **修订（2026-04-25，A26）**：本节给出的 "Step 5 ~300ms (Haiku rerank)"
+> 数字过度乐观。真实 Anthropic Haiku 调用 ≥1s。订正为：
+> - **不开 rerank**：~100ms 总（embedding 50ms + HNSW 50ms）
+> - **开 rerank**：1.5-3s 总（含 1 次 Haiku）
+>
+> Phase 2 MVP **默认关闭 rerank**（feature flag `RAG_RERANK_ENABLED=false`），
+> 用 cosine top-K 直出。详见 `docs/v3-1-latency-analysis.md` O3 + ADR A26。
 
 ```
 Input: { text, source_lang, target_lang }
@@ -682,7 +702,16 @@ Input: { text, source_lang, target_lang }
 
 ### 5.2 Translate（v3.1 升级 — agent 路径）
 
-#### `POST /translate`
+> **修订（2026-04-25 / W5.5）**：实际实施分裂成两个端点：
+> - `POST /translate` — Phase 1 W3 已上线的 Google MT 代理 + shared_cache。
+>   保留 dormant，Phase 2 agent 内部 baseline node 复用。
+> - `POST /translate-agent` — Phase 2 W6+ 上线的 LangGraph agent 入口，
+>   要求登录，触发条件是用户显式点 "AI 精翻" 按钮。
+>
+> 详见 `docs/v3-product-design.md` §5。下方契约描述的是
+> `/translate-agent` 的最终形状。
+
+#### `POST /translate-agent`（Phase 2+）
 
 **Request**:
 
@@ -989,15 +1018,28 @@ dualread-backend (PRIVATE) /.github/workflows/
 
 ### 8.1 翻译路径降级优先级（v3.1 升级）
 
-每次登录用户翻译请求，从优到劣：
+> **修订（2026-04-25 / W5.5）**：原描述假设"登录用户翻译请求"全部
+> 经过 agent。实际实施已改 dual-channel：
+> - **划词翻译**永远走本地 Google MT（快路径）—— 失败仅 6/7 项适用
+> - **AI 精翻**（用户显式触发）才进 agent 路径 —— 1-5 项适用
+>
+> 详见 `docs/v3-product-design.md`。
 
-1. **精确缓存命中** → return（< 100ms）
-2. **Agent 完整 3 节点成功** → return + 写缓存
+**划词翻译路径（高频，永远本地）：**
+
+1. 扩展端 session cache 命中 → return（即时）
+2. 本地 fetch translate.googleapis.com → return + 写 session cache
+3. Google Translate 挂 → 扩展端显示 i18n 错误（rate_limit / network / generic）
+
+**AI 精翻路径（用户显式触发，agent）：**
+
+1. **精确缓存命中**（shared_cache）→ return（< 100ms）
+2. **Agent 完整 3 节点成功**（W6+ 改并行后是 Node1‖Node2 + Node3）→ return + 写缓存
 3. **Agent Node 2 (RAG) 失败** → 跳过 RAG，Node 3 直接用 Node 1 输出
 4. **Agent Node 3 (Polish) 失败** → return Node 1 raw_translation
-5. **Agent Node 1 (Translate) 失败** → fallback Google Translate
-6. **后端整体不可达** → 扩展端 fallback Google Translate
-7. **Google Translate 也挂** → 扩展端硬错误
+5. **Agent Node 1 (Translate) 失败** → return 503，UI 提示"暂时无法连接服务"。**不**降级回本地 Google MT —— 用户已经看到划词翻译结果了，AI 精翻失败仅意味着精翻 enhance 没拿到，不破坏主体验
+6. **后端整体不可达** → UI 提示同上
+7. **配额耗尽** → return 429，UI 显示"今日 AI 精翻已用完"
 
 前 4 档用户不感知（最多多 ~200ms）；第 5 档客户端收到 `degraded: true`
 显示 toast；6/7 档由扩展端 UX 处理。

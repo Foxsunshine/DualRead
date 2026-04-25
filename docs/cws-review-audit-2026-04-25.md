@@ -11,6 +11,13 @@
 `src/**/*.ts` / CSP / host_permissions / 已知 CWS "stuck in review" 高频原因
 **审计者**：Claude（bug-hunter + security-review 组合思路）
 
+> **后续修订（2026-04-25 / W5#3）**：源仓库的 `manifest.json` 已被
+> `manifest.config.ts` + `.env.production` 取代（构建时注入 OAuth
+> client_id + 后端 URL，避免明文进公开仓库）。本文档下文里的
+> `manifest.json:行号` 引用是 v2.x 提审时的源码状态；W5+ 提审需要看
+> `manifest.config.ts` 中的对应字段，但**最终给 CWS 的 dist/manifest.json
+> 输出形状不变**，所以本文档的合规判断和 P0/P1 清单仍然有效。
+
 ---
 
 ## 背景
