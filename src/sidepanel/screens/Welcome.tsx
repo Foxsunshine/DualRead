@@ -1,34 +1,23 @@
 import { useState } from "react";
 import type { Strings } from "../i18n";
-import type { Lang, Level } from "../../shared/types";
+import type { Lang } from "../../shared/types";
 import { LANG_OPTIONS } from "../../shared/types";
 import { LogoMark } from "../components/LogoMark";
 
 interface Props {
   S: Strings;
-  level: Level;
-  // v2.4: current ui_language (already populated by the v2.2 onInstalled
+  // current ui_language (already populated by the v2.2 onInstalled
   // auto-detect by the time Welcome renders). The picker uses this as
   // its initial active option; user clicks override it via onLangChange.
   currentLang: Lang;
-  onLevelChange: (level: Level) => void;
   onLangChange: (lang: Lang) => void;
   onStart: () => void;
   onSkipToSettings: () => void;
 }
 
-const LEVELS: { id: Level; labelKey: keyof Strings }[] = [
-  { id: "A2", labelKey: "levelA2" },
-  { id: "B1", labelKey: "levelB1" },
-  { id: "B2", labelKey: "levelB2" },
-  { id: "C1", labelKey: "levelC1" },
-];
-
 export function Welcome({
   S,
-  level,
   currentLang,
-  onLevelChange,
   onLangChange,
   onStart,
   onSkipToSettings,
@@ -51,7 +40,6 @@ export function Welcome({
       <p className="dr-welcome__body">{S.welcomeBody}</p>
 
       {/*
-        v2.4 D1 / D2 / D3 / D6 + §9.1 P0-6 (a11y).
         4-option language picker as a proper ARIA radiogroup with
         roving tabindex (only the active radio is in the tab order)
         and arrow-key navigation per the ARIA APG radio pattern.
@@ -106,22 +94,6 @@ export function Welcome({
               </button>
             );
           })}
-        </div>
-      </div>
-
-      <div className="dr-welcome__level-group">
-        <div className="dr-welcome__level-prompt">{S.levelPrompt}</div>
-        <div className="dr-welcome__levels">
-          {LEVELS.map((l) => (
-            <button
-              key={l.id}
-              type="button"
-              className={`dr-level ${level === l.id ? "dr-level--active" : ""}`}
-              onClick={() => onLevelChange(l.id)}
-            >
-              {S[l.labelKey] as string}
-            </button>
-          ))}
         </div>
       </div>
 
