@@ -31,6 +31,7 @@
 // round-trip, word A's late response must not repaint over B.
 
 import type { VocabWord, TranslateResult, Settings, Lang } from "../shared/types";
+import { detectInitialLang } from "../shared/i18nDetect";
 import type { BubbleHandle, BubbleAnchor, BubbleStrings } from "./bubble";
 import type { UndoToastHandle } from "./toast";
 import { sendMessage, STORAGE_PREFIX_VOCAB } from "../shared/messages";
@@ -488,11 +489,23 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       return;
     }
 
-    const translation = (resp.data as TranslateResult | undefined)?.translated || "—";
-    renderTranslated(click, translation, saved);
+    const data = resp.data as TranslateResult | undefined;
+    const translation = data?.translated || "—";
+    // v2.3: Google MT returns the auto-detected source language as a
+    // BCP-47-ish tag (e.g. "en", "fr", "zh-CN", "auto" for ambiguous
+    // input). Map it through detectInitialLang to fold region variants
+    // and unknowns into one of our 4 supported langs — same prefix
+    // logic the install-time detect uses, so storage stays consistent.
+    const sourceLang = detectInitialLang(data?.detectedLang ?? "");
+    renderTranslated(click, translation, saved, sourceLang);
   }
 
-  function renderTranslated(click: CurrentClick, translation: string, saved: VocabWord | null): void {
+  function renderTranslated(
+    click: CurrentClick,
+    translation: string,
+    saved: VocabWord | null,
+    sourceLang: Lang,
+  ): void {
     const strings = bubbleStrings(click.lang);
     bubble.show({
       anchor: click.anchor,
@@ -504,7 +517,9 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
         note: saved?.note,
       },
       strings,
-      onSave: saved ? undefined : () => void handleSave(click, translation),
+      onSave: saved
+        ? undefined
+        : () => void handleSave(click, translation, sourceLang),
       onClose: () => {
         if (active?.token === click.token) active = null;
         onClickBubbleClose?.();
@@ -512,12 +527,22 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     });
   }
 
-  async function handleSave(click: CurrentClick, translation: string): Promise<void> {
+  async function handleSave(
+    click: CurrentClick,
+    translation: string,
+    sourceLang: Lang,
+  ): Promise<void> {
     const now = Date.now();
     const word_key = click.word.trim().toLowerCase();
+    // v2.3 schema: write canonical fields (source_lang / target_lang /
+    // translation) + keep `zh` as legacy mirror so a v2.x rollback
+    // continues to render the saved row. v3 will eventually drop `zh`.
     const vw: VocabWord = {
       word: click.word,
       word_key,
+      source_lang: sourceLang,
+      target_lang: click.lang,
+      translation,
       zh: translation,
       ctx: click.context || undefined,
       source_url: location.href,
@@ -531,7 +556,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       // The user may have clicked another word while the save was
       // in-flight; don't paint onto someone else's bubble.
       if (active?.token !== click.token) return;
-      if (resp.ok) renderTranslated(click, translation, vw);
+      if (resp.ok) renderTranslated(click, translation, vw, sourceLang);
     } catch {
       /* context invalidated or save failed — silently keep Save enabled so
          the user can retry. A future iteration could surface a toast. */
