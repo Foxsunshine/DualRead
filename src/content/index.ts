@@ -35,16 +35,32 @@ import {
 // FAB labels kept inline instead of importing `DR_STRINGS`. The side panel
 // dict is ~70 keys and we only need two — copying here keeps the content
 // bundle lean and decoupled from panel copy churn.
+//
+// v2.2 D4a: ternary → Record<Lang, FabStrings>. JA labels in ですます調
+// (the FAB tooltip is a sentence, not a button command), FR in
+// vouvoiement-style descriptive labels — both match how the side-panel
+// pause-state strings read in their respective languages.
+const FAB_STRINGS: Record<Lang, FabStrings> = {
+  "zh-CN": {
+    onLabel: "学习模式：已开启（点击关闭）",
+    offLabel: "学习模式：已关闭（点击开启）",
+  },
+  en: {
+    onLabel: "Learning mode: on (click to turn off)",
+    offLabel: "Learning mode: off (click to turn on)",
+  },
+  ja: {
+    onLabel: "学習モード: オン（クリックでオフ）",
+    offLabel: "学習モード: オフ（クリックでオン）",
+  },
+  fr: {
+    onLabel: "Mode apprentissage : activé (cliquez pour désactiver)",
+    offLabel: "Mode apprentissage : désactivé (cliquez pour activer)",
+  },
+};
+
 function fabStrings(lang: Lang): FabStrings {
-  return lang === "zh-CN"
-    ? {
-        onLabel: "学习模式：已开启（点击关闭）",
-        offLabel: "学习模式：已关闭（点击开启）",
-      }
-    : {
-        onLabel: "Learning mode: on (click to turn off)",
-        offLabel: "Learning mode: off (click to turn on)",
-      };
+  return FAB_STRINGS[lang];
 }
 
 // ───── Extension-context liveness ────────────────────────────

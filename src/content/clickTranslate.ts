@@ -61,26 +61,52 @@ const HIGHLIGHT_SELECTOR = "span.dr-hl";
 // is ~70 keys per locale and this module only needs 6. Copying them keeps
 // the content-script bundle lean and decouples bubble copy from the panel
 // screens' evolution.
+// v2.2 D4a: ternary → Record<Lang, BubbleStrings> lookup. The Record type
+// forces every Lang variant to have a complete entry; missing ja or fr
+// keys are caught at compile time. JA buttons in 命令形 (保存/削除/再試行),
+// FR buttons in impératif (Enregistrer/Supprimer/Réessayer) per the
+// register matrix in v2-2 brainstorm §9.2 P1-S2.
+const BUBBLE_STRINGS: Record<Lang, BubbleStrings> = {
+  "zh-CN": {
+    save: "保存",
+    saved: "已保存",
+    detail: "打开详情",
+    close: "关闭",
+    loading: "翻译中…",
+    retry: "重试",
+    del: "删除",
+  },
+  en: {
+    save: "Save",
+    saved: "Saved",
+    detail: "View details",
+    close: "Close",
+    loading: "Translating…",
+    retry: "Retry",
+    del: "Delete",
+  },
+  ja: {
+    save: "保存",
+    saved: "保存済み",
+    detail: "詳細を表示",
+    close: "閉じる",
+    loading: "翻訳中…",
+    retry: "再試行",
+    del: "削除",
+  },
+  fr: {
+    save: "Enregistrer",
+    saved: "Enregistré",
+    detail: "Voir les détails",
+    close: "Fermer",
+    loading: "Traduction…",
+    retry: "Réessayer",
+    del: "Supprimer",
+  },
+};
+
 function bubbleStrings(lang: Lang): BubbleStrings {
-  return lang === "zh-CN"
-    ? {
-        save: "保存",
-        saved: "已保存",
-        detail: "打开详情",
-        close: "关闭",
-        loading: "翻译中…",
-        retry: "重试",
-        del: "删除",
-      }
-    : {
-        save: "Save",
-        saved: "Saved",
-        detail: "View details",
-        close: "Close",
-        loading: "Translating…",
-        retry: "Retry",
-        del: "Delete",
-      };
+  return BUBBLE_STRINGS[lang];
 }
 
 // Copy for the undo toast + its error state (v2.1 / D58).
@@ -95,30 +121,70 @@ interface ToastStrings {
   errorClose: string;
 }
 
+// JA toast body in past polite (削除しました / 保存しました convention),
+// JA undo action in 命令形 (元に戻す), FR in impératif + vouvoiement.
+const TOAST_STRINGS: Record<Lang, ToastStrings> = {
+  "zh-CN": {
+    deletedBody: "已删除",
+    undoAction: "撤销",
+    errorBody: "删除失败，请稍后再试。",
+    errorClose: "关闭",
+  },
+  en: {
+    deletedBody: "Word deleted",
+    undoAction: "Undo",
+    errorBody: "Delete failed. Try again.",
+    errorClose: "Close",
+  },
+  ja: {
+    deletedBody: "削除しました",
+    undoAction: "元に戻す",
+    errorBody: "削除に失敗しました。少し待ってから再試行してください。",
+    errorClose: "閉じる",
+  },
+  fr: {
+    deletedBody: "Mot supprimé",
+    undoAction: "Annuler",
+    errorBody: "Échec de la suppression. Réessayez bientôt.",
+    errorClose: "Fermer",
+  },
+};
+
 function toastStrings(lang: Lang): ToastStrings {
-  return lang === "zh-CN"
-    ? {
-        deletedBody: "已删除",
-        undoAction: "撤销",
-        errorBody: "删除失败，请稍后再试。",
-        errorClose: "关闭",
-      }
-    : {
-        deletedBody: "Word deleted",
-        undoAction: "Undo",
-        errorBody: "Delete failed. Try again.",
-        errorClose: "Close",
-      };
+  return TOAST_STRINGS[lang];
 }
 
+// In-bubble error message dispatch. Ditto register conventions: JA polite
+// ですます sentences, FR vouvoiement. Generic fallback handles any code
+// the caller throws that isn't rate_limit / network.
+const ERROR_MESSAGES: Record<Lang, { rate_limit: string; network: string; generic: string }> = {
+  "zh-CN": {
+    rate_limit: "翻译服务暂时被限流，稍后重试。",
+    network: "网络好像断了。",
+    generic: "翻译失败。",
+  },
+  en: {
+    rate_limit: "Rate-limited, try again soon.",
+    network: "Network issue.",
+    generic: "Translation failed.",
+  },
+  ja: {
+    rate_limit: "翻訳サービスが一時的に制限されています。少し待ってから再試行してください。",
+    network: "ネットワークに問題があります。",
+    generic: "翻訳に失敗しました。",
+  },
+  fr: {
+    rate_limit: "Service de traduction momentanément limité. Réessayez bientôt.",
+    network: "Problème réseau.",
+    generic: "Échec de la traduction.",
+  },
+};
+
 function translateErrorMessage(code: string, lang: Lang): string {
-  if (code === "rate_limit") {
-    return lang === "zh-CN" ? "翻译服务暂时被限流，稍后重试。" : "Rate-limited, try again soon.";
-  }
-  if (code === "network") {
-    return lang === "zh-CN" ? "网络好像断了。" : "Network issue.";
-  }
-  return lang === "zh-CN" ? "翻译失败。" : "Translation failed.";
+  const m = ERROR_MESSAGES[lang];
+  if (code === "rate_limit") return m.rate_limit;
+  if (code === "network") return m.network;
+  return m.generic;
 }
 
 // ───── Context extraction ────────────────────────────────────
