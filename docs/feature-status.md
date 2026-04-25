@@ -1,8 +1,8 @@
 # DualRead 功能现状
 
-> 最后更新：2026-04-25（v2.3.0 实装完毕）。当前 main HEAD 的功能盘点
-> + 未来版本路线。下一次大改后 patch 这个文件，让它一直反映"现在是
-> 什么样"。
+> 最后更新：2026-04-25（Phase 1 W4 实装完毕，端到端登录可本地测）。
+> 当前 main HEAD 的功能盘点 + 未来版本路线。下一次大改后 patch 这个
+> 文件，让它一直反映"现在是什么样"。
 
 ---
 
@@ -86,14 +86,23 @@
 >
 > 简历叙事核心。从 0 建：
 
-### v3.0 产品骨架（Phase 1，W1-W3）
+### v3.0 产品骨架（Phase 1）
 
-- FastAPI 后端 + Postgres + Railway 部署
-- Google OAuth + 自验 JWT
-- 用户登录后翻译走后端而非 Google MT
-- 生词云端同步（双写 storage.sync + 后端）
-- shared_cache（共享翻译缓存）
-- Rate limit + 健康检查
+**W1-W4 已完成（2026-04-25）：**
+
+- ✅ FastAPI 骨架 + Postgres + alembic + 4 base tables（W1）
+- ✅ Google OAuth（access_token + userinfo verify）+ 自验 HS256 JWT（W2/W4#1）
+- ✅ Anonymous /translate（Google MT 兜底 + shared_cache 写穿）（W3#1）
+- ✅ Authenticated /vocab CRUD + bulk-upsert（与 v2.3 schema 镜像）（W3#2）
+- ✅ Hourly Postgres-backed rate limiter（per-IP + per-user）（W3#3）
+- ✅ Chrome extension `chrome.identity.getAuthToken` 流程 + Settings Account UI（W4#2）
+- ✅ 端到端本地登录 runbook（W4#3，`DualRead-backend/docs/runbooks/dev-login.md`）
+
+**W5（待办）：**
+
+- Railway 部署 + 把 manifest host_permissions 切到 prod URL
+- 把翻译路径切到 backend（user 已登录走 backend，未登录走原本地 Google MT）
+- 生词云端同步（双写 storage.sync + 后端 /vocab/bulk-upsert）
 
 ### v3.1 AI 工程层（Phase 2-5，W4-W12）
 

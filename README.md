@@ -42,6 +42,12 @@ npm run build        # production build → dist/
 
 Live-reload: `npm run dev` keeps a watcher running. Side-panel changes hot-reload automatically; content-script or background changes require the extension's reload button at `chrome://extensions`.
 
+### Dev: end-to-end sign-in
+
+Phase 1 W4 wires the extension's "Sign in with Google" button (Settings → Account) to a local FastAPI backend. The full step-by-step is in the backend repo: [`DualRead-backend/docs/runbooks/dev-login.md`](../DualRead-backend/docs/runbooks/dev-login.md). First-time setup (~15 min) includes creating a Chrome Extension OAuth client in the GCP Console; subsequent runs are just `docker compose up && uvicorn`.
+
+Pre-CWS this flow is dev-only — CWS-published builds still surface as the v2.x local-only experience until the backend ships to Railway and the manifest's host_permissions are pointed at the prod URL (Phase 1 W5).
+
 ## Tech stack
 
 - TypeScript 5.7 (strict) + React 19
