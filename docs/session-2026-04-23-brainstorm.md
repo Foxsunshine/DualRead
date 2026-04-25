@@ -1,78 +1,81 @@
-# 2026-04-23 头脑风暴会话记录
+# 2026-04-23 · v2.0.1 patch notes
 
-> 目的：盘点 2026-04-22 已改 / 未改内容，作为后续设计讨论的起点。
-> 规则：本文件只做记录与设计沉淀，不直接驱动实装（处于 brainstorming 模式）。
+v2.0.0 上架后三个磨损点的小修补。补记录，方便以后回头看为什么这么改。
 
----
-
-## 1. 昨天已改（工作区未提交）
-
-截至 2026-04-23 开始时，`git status` 显示以下未 commit 变更：
-
-### 1.1 Bubble「打开详情」按钮图标化
-- **文件**：`src/content/bubble.ts`、`src/content/bubbleStyles.ts`
-- **变更**：已保存态气泡里原来的文字链「打开详情 / View details」换成纯图标按钮（线稿打开书 SVG）。
-  - 新 class：`.dr-bubble__detail`（取代旧的 `.dr-bubble__link`）
-  - 尺寸约 28×28（16px 图形 + 6px padding），hover 出软色块
-  - 无障碍：`title` + `aria-label` 都带上原字符串 `strings.detail`
-- **状态**：代码已落地，未测试未 commit。
-
-### 1.2 高亮候选过滤：`isHighlightable` 谓词
-- **新文件**：`src/shared/highlightable.ts`（30 行）、`src/shared/highlightable.test.ts`（70 行，14 个 vitest 用例）
-- **改动**：`src/content/index.ts` 的 `readVocabKeys()` 在拉 vocab key 时调用该谓词过滤。
-- **规则**：
-  1. 仅允许 `\p{Script=Latin}`、组合符、撇号、连字符、空格。
-  2. 空白分词后 ≤ 3 个 token（覆盖 give up / give up on / in spite of 等短语动词）。
-  3. 排除：CJK、西里尔字母、纯数字、包含数字的条目、句子（≥ 4 词）、空字符串。
-- **动机**：Vocab 列表 / CSV 导出仍展示完整条目；但进正则匹配器的只剩真正能被 `\b(...)\b` 命中的短 Latin token，避免长句拼成的无用 alternation 开销，也避免 CJK 在 V8 正则里没有 `\b` 语义导致的永不命中。
-- **状态**：代码 + 单测到位，未接 CI，未验证面板侧是否需要对"未参与高亮"的行做视觉标注。
-
-### 1.3 Settings 反馈入口
-- **文件**：`src/sidepanel/screens/Settings.tsx`、`src/sidepanel/i18n.ts`、`src/sidepanel/styles.css`
-- **变更**：在 Settings 危险区之上加一个「反馈 / Bug 报告」分组，两行链接：
-  - `mailto:jiang.ch2022@gmail.com?subject=DualRead`
-  - `https://github.com/Foxsunshine/DualRead/issues`（`target=_blank` + `rel="noopener noreferrer"`）
-- **i18n**：新增 `feedbackTitle` ZH/EN。
-- **样式**：`.dr-contact` / `.dr-contact__row` / `.dr-contact__link`，hover 出软色块，14px 行内 SVG 图标。
-- **状态**：仅 UI 改动，未在侧栏里实际点过。
-
-### 1.4 小修：`.dr-vocab__sort` 按钮 UA reset
-- **文件**：`src/sidepanel/styles.css`
-- **变更**：显式 `background: none; border: 0; padding: 0; font: inherit;`，清掉 Chrome 原生按钮样式泄漏。
-- **动机**：邻居 `.dr-vocab__export` 是通过自身的 border/background 覆盖；`.dr-vocab__sort` 之前没覆盖到，会看到浅灰边框。
+详情都折叠在 🔍 里，点开看实现。
 
 ---
 
-## 2. 昨天没改（已知但被推迟）
+## 1. 气泡的「打开详情」→ 图标
 
-来自记忆文件 + DESIGN.md §11 Phase 3 + §10 R3：
+已保存词气泡里原本的「打开详情 / View details」文本链接换成了 icon-only 按钮
+（open book 线条图），和旁边的 Save 按钮视觉对齐，不再抢戏。
 
-### 2.1 v2.0.0 已知技术债（不是阻塞发布项）
-- **R3 SPA 高亮性能基准**：`scanAll` 从未在 Twitter/X feed 或 YouTube 评论实测过。预算 <120 ms 典型 / <300 ms 峰值；回退方案为 IntersectionObserver 视口内扫描或 per-domain deny-list。
-- **v1.1 全量冒烟**：`docs/v1-1-smoke-results.md` 只 spot-check 了 Reddit FAB。尚未跑完 click-on-unsaved、drag-snap、ESC 关闭、saved-word 气泡、"打开详情" scroll-into-view、`<a>`/`<input>`/`<code>` 拒绝、Cmd+click、离线重试、429 错误展示等。
+<details>
+<summary>🔍</summary>
 
-### 2.2 v1.2 Backlog（未开工）
-- 单域名 FAB 隐藏开关
-- FAB 可拖动定位
-- Vocab 列表跳回原文 URL（原计划 F4）
-- Playwright 扩展 e2e 脚手架
-- Google MT 429 时 Gemini 回退（`src/background/translate.ts` 仅留了注释占位）
+- 触点：`src/content/bubble.ts`（`showDetailLink` 分支）、`src/content/bubbleStyles.ts`
+- CSS 类名迁移：`dr-bubble__link` → `dr-bubble__detail`
+- Icon：16×16 inline SVG，line-art 开本造型，`currentColor` 跟随主题
+- A11y：`title` + `aria-label` 双写 —— 桌面 hover 能看到 tooltip，屏幕阅读器也拿得到可读名
+- 尺寸：6px padding + 16px glyph ≈ 28×28；靠 `align-items: center` 吸收与 Save 的高度差
+- Hover 态：soft chip（`borderSoft` 背景 → `accent` 文字），不用边框，保持气泡的轻量感
 
-### 2.3 昨天新改动附带但未做的事
-- 1.1 的图标按钮：没跑过 vitest / typecheck / build，也没在浏览器里点过。
-- 1.2 的 `isHighlightable`：侧栏 Vocab 列表还没用它去给"非高亮条目"加标识；用户现在看不出某条是否会在网页上真的高亮。
-- 1.3 的反馈块：没考虑 Issues 链接里是否应该预填 issue template（`/issues/new?template=...`）。
+</details>
 
 ---
 
-## 3. Decision Log（随着头脑风暴增补）
+## 2. 高亮的文本长度限制
 
-| 时间 | 决议 | 备选 | 理由 |
-|------|------|------|------|
-| — | — | — | — |
+新增 `isHighlightable(key)` 谓词 —— 长句、多词短语、非拉丁脚本的条目
+**仍然保存在 Vocab 和 CSV 导出里**，但 **高亮引擎跳过不处理**。
+
+筛选规则：
+
+- **脚本**：仅 Latin（`\p{Script=Latin}` + 组合符 + `'` + `-` + 空格）；
+  CJK 等脚本 V8 的 `\b` 本来就没语义，留着只是空转
+- **长度**：按空白分词后 token 数 ≤ 3；覆盖 `give up` / `in spite of` 这类短语，
+  放过整句引用
+- **数字**：不匹配 `2024` / 版本号等纯数字串
+
+<details>
+<summary>🔍</summary>
+
+- 新文件：`src/shared/highlightable.ts`（含完整注释，说明为什么是 ≤ 3 token）
+- 测试：`src/shared/highlightable.test.ts` —— 拉丁/CJK/数字/长度边界全覆盖
+- 单一事实来源：content script 构建匹配正则时消费它；Vocab 列表将来也可以用同一个
+  函数给行打「此项不参与高亮」的注释，避免用户困惑
+- 为什么不直接丢：用户可能是故意存了整句当参考，删了会损失数据；只是让它不上网页高亮而已
+- 为什么是 3 而不是 2 或 5：phrasal verb 的常见长度 —— `give up on`、`in spite of`
+  正好 3 token；超过基本就是引用或整句，高亮了也碰不到第二次
+
+</details>
 
 ---
 
-## 4. 本次头脑风暴范围（待对齐）
+## 3. Settings 里的反馈入口
 
-下一步需要和用户先锁定：今天要聚焦哪一块？见会话中提出的问题。
+Settings 页面在 Danger Zone 上方新增「反馈 / Bug 报告」板块，两行联系方式：
+
+- ✉ `mailto:jiang.ch2022@gmail.com`（subject 预填 `DualRead`）
+- ↗ `https://github.com/Foxsunshine/DualRead/issues`（新标签页打开）
+
+<details>
+<summary>🔍</summary>
+
+- 触点：`src/sidepanel/screens/Settings.tsx`、`src/sidepanel/styles.css`
+  （新增 `.dr-contact`、`.dr-contact__row`、`.dr-contact__link`）
+- i18n：新增 `feedbackTitle` key（zh-CN / en 双语）；地址和 URL 字面渲染，不参与翻译
+- Icon：inline SVG（信封、外链方框），14×14，`currentColor`，不额外引用图标库
+- GitHub 链接带 `target="_blank" rel="noopener noreferrer"`，防止反向 tab-nab
+- 位置：放在 Danger Zone 之上 —— 用户要清数据之前多半先想吐槽一下，入口就在那里
+
+</details>
+
+---
+
+## 未动项（继续留给后续）
+
+- R3 SPA 高亮性能 benchmark
+- v2.0.0 full smoke sweep
+- v1.2 延后队列：F4 跳回源 URL、FAB per-domain hide、Playwright extension e2e

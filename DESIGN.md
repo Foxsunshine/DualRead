@@ -720,6 +720,13 @@ v1.1 spec; this appendix is a pointer and change summary only.
 - Per-domain FAB hide; draggable FAB position
 - Playwright-extension e2e test setup
 
+**v2.0.1 patch (2026-04-23)** — three small post-release fixes: saved-word
+bubble's "View details" text link → icon-only button; new `isHighlightable()`
+predicate so long/CJK/multi-word vocab entries are persisted but skipped by
+the highlight engine; Settings gains a feedback block (email + GitHub Issues)
+above the danger zone. Details in
+[`docs/session-2026-04-23-brainstorm.md`](docs/session-2026-04-23-brainstorm.md).
+
 **Cross-reference table**
 
 | Decision | Status |
