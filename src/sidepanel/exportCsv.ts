@@ -15,18 +15,37 @@ function esc(v: string | number | undefined): string {
 }
 
 export function toCsv(words: VocabWord[]): string {
-  const header = ["word", "translation", "context", "note", "source_url", "created_at"];
+  // v2.3 schema export. New columns:
+  //   - source_lang  — the language Google MT detected when the word
+  //                    was saved (legacy rows = "en" via fallback)
+  //   - target_lang  — the user's ui_language at save time (legacy
+  //                    rows = "zh-CN" via fallback)
+  // The legacy `zh` column stays alongside `translation` so any
+  // already-existing user import scripts keyed on `zh` continue to
+  // work. v3 will drop both legacy columns once enough time has
+  // passed for downstream tooling to migrate.
+  const header = [
+    "word",
+    "translation",
+    "source_lang",
+    "target_lang",
+    "context",
+    "note",
+    "source_url",
+    "created_at",
+    "zh", // legacy
+  ];
   const rows = words.map((w) =>
     [
       esc(w.word),
-      // v2.3: prefer the new generic `translation` field; fall back to
-      // legacy `zh` for rows saved before the schema migration. Commit G
-      // extends the header with explicit source_lang / target_lang columns.
       esc(w.translation ?? w.zh),
+      esc(w.source_lang ?? "en"),
+      esc(w.target_lang ?? "zh-CN"),
       esc(w.ctx),
       esc(w.note),
       esc(w.source_url),
       esc(new Date(w.created_at).toISOString()),
+      esc(w.zh),
     ].join(",")
   );
   // CRLF line terminator per RFC 4180. Excel is the pickiest consumer here.
