@@ -20,6 +20,7 @@ import {
 import { DEFAULT_SETTINGS } from "../shared/types";
 import type { SelectionPayload } from "../shared/types";
 import { detectInitialLang } from "../shared/i18nDetect";
+import { migrateVocabSchemaIfNeeded } from "./vocabMigrate";
 import { clearVocab, deleteWord, getVocab, saveWord } from "./vocab";
 import { handleTranslate } from "./translate";
 
@@ -65,6 +66,18 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   const { settings } = await chrome.storage.local.get("settings");
   if (!settings) {
     await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });
+  }
+
+  // v2.3: back-fill VocabWord schema for users upgrading from v2.x.
+  // Awaited end-to-end so the MV3 service worker stays alive past the
+  // ~30 s idle timeout while the migration scans + writes (multi-agent
+  // P0-3). The function is idempotent and version-flag-guarded, so
+  // accidental re-firing is harmless.
+  try {
+    await migrateVocabSchemaIfNeeded();
+  } catch (e) {
+    console.warn("[background] vocab schema migration failed:", e);
+    /* leave version flag unset → next launch retries */
   }
 });
 
