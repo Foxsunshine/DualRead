@@ -19,7 +19,10 @@ export function toCsv(words: VocabWord[]): string {
   const rows = words.map((w) =>
     [
       esc(w.word),
-      esc(w.zh),
+      // v2.3: prefer the new generic `translation` field; fall back to
+      // legacy `zh` for rows saved before the schema migration. Commit G
+      // extends the header with explicit source_lang / target_lang columns.
+      esc(w.translation ?? w.zh),
       esc(w.ctx),
       esc(w.note),
       esc(w.source_url),

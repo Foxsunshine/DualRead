@@ -71,9 +71,12 @@ export function Vocab({
       const word = words.find((w) => w.word_key === focusedKey);
       if (!word) return "";
       const needle = q.trim().toLowerCase();
+      // v2.3: search against the new `translation` field with `zh` as
+      // legacy fallback so words saved before the schema migration stay
+      // findable.
       const hit =
         word.word.toLowerCase().includes(needle) ||
-        word.zh.toLowerCase().includes(needle) ||
+        (word.translation ?? word.zh ?? "").toLowerCase().includes(needle) ||
         (word.note ?? "").toLowerCase().includes(needle);
       return hit ? q : "";
     });
@@ -97,7 +100,7 @@ export function Vocab({
       list = list.filter(
         (w) =>
           w.word.toLowerCase().includes(q) ||
-          w.zh.toLowerCase().includes(q) ||
+          (w.translation ?? w.zh ?? "").toLowerCase().includes(q) ||
           (w.note ?? "").toLowerCase().includes(q)
       );
     }
@@ -197,7 +200,7 @@ export function Vocab({
                 tabIndex={0}
               >
                 <div className="dr-vocab-row__word">{w.word}</div>
-                <div className="dr-vocab-row__zh">{w.zh}</div>
+                <div className="dr-vocab-row__zh">{w.translation ?? w.zh ?? ""}</div>
                 <div className="dr-vocab-row__days">{d === 0 ? "today" : `${d}d`}</div>
               </div>
               {w.ctx && <div className="dr-vocab-row__ctx">“…{w.ctx}…”</div>}

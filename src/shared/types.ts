@@ -69,7 +69,21 @@ export const DEFAULT_SETTINGS: Settings = {
 export interface VocabWord {
   word: string;
   word_key: string;
-  zh: string;
+  // v2.3 schema extension. New rows MUST set source_lang / target_lang /
+  // translation; legacy v1/v2.x rows have only `zh` (and sometimes `en`).
+  // Keeping the new fields OPTIONAL (multi-agent review P0-4) means a
+  // checkout sitting between commit B and the migration commit C still
+  // typechecks and renders existing storage cleanly. Read paths fall
+  // back: `(v.translation ?? v.zh ?? "")` for the displayed translation,
+  // `(v.source_lang ?? "en")` and `(v.target_lang ?? "zh-CN")` for legacy
+  // rows. The migration in vocabMigrate.ts populates the new fields on
+  // first update-install after v2.3 ships, so the optional-ness becomes
+  // de facto required for new data without ever being a TypeScript
+  // requirement (legacy tolerance is preserved long-term).
+  source_lang?: Lang;
+  target_lang?: Lang;
+  translation?: string;
+  zh?: string;
   en?: string;
   ctx?: string;
   source_url?: string;
@@ -77,6 +91,14 @@ export interface VocabWord {
   created_at: number;
   updated_at: number;
 }
+
+// v2.3 schema migration version. Stored under the same key in
+// chrome.storage.SYNC (not chrome.storage.local) so all signed-in devices
+// share the same flag — without this the migration would race across
+// machines and burn the 1800-writes/hour quota three times over for a
+// user with three devices (multi-agent review P0-1).
+export const VOCAB_SCHEMA_VERSION = 2;
+export const STORAGE_KEY_VOCAB_SCHEMA_VERSION = "vocab_schema_version";
 
 export interface SelectionPayload {
   text: string;

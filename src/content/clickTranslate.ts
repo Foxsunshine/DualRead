@@ -652,7 +652,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       state: {
         kind: "translated",
         word: click.word,
-        translation: saved.zh || "—",
+        translation: saved.translation ?? saved.zh ?? "—",
         saved: true,
         note: saved.note,
         showDetailLink: true,
