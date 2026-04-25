@@ -52,13 +52,18 @@
 
 ## ⏳ 待实装
 
-### v2.5.0 — 收尾 backlog
+### v2.5.0 — 收尾 backlog（**deferred to post-v3**）
 
-> 没规划成正式 brainstorm，零碎修补
+> 2026-04-25 决策：v2.x polish 已到边际报酬递减区。Phase 1 (FastAPI
+> backend) 对简历叙事 / career pivot 价值远高于这 4 项 polish。等 v3
+> 主体上线后、有真实用户反馈信号时再回头收尾。
+>
+> 例外：如果 v2.3 上线后出现明显 JA / FR install 转化问题，单独提前
+> 做 #3（商店元数据 4 语化），其余三项继续 defer。
 
 - **同语对加"翻译 anyway"按钮** — 古文 / 文白对译需求；i18n key + UI hook 已在 v2.3 brainstorm §8.2 reserve
 - **zh-TW 单独支持** — 目前 zh-TW 回退到 zh-CN（简体）
-- **商店元数据 4 语化** — `_locales/ja/` + `_locales/fr/`，让 CWS 商店页母语显示扩展名 / 简介
+- **商店元数据 4 语化** — `_locales/ja/` + `_locales/fr/`，让 CWS 商店页母语显示扩展名 / 简介。⚠️ 改 `_locales/` 触发 CWS full re-review（7-21 天）
 - **Welcome 视口 < 600px 不许滚动** — manual smoke 检查项
 
 ### v1.x 一直 deferred 的小事
@@ -102,7 +107,7 @@
 
 | 项 | 阻塞了什么 | 何时解 |
 |---|---|---|
-| v2.0.0 还在 CWS Review（since 2026-04-22） | v2.2 / v2.3 / v2.5 都不能上架，等 v2.0 过审 | 7-21 天正常窗口 |
+| v2.0.0 还在 CWS Review（since 2026-04-22） | v2.2 / v2.3 不能上架，等 v2.0 过审 | 7-21 天正常窗口 |
 | v2.3 schema migration storage 用量未实测 | v2.3 push 上 CWS 之前最好让用户跑一次 sync 用量检查（`chrome.storage.sync.getBytesInUse(null)`），确认离 100KB 还远 | 实测 1 分钟 |
 | Anthropic / OpenAI hard cap 未设 | Phase 1 W1 之前必须设 | Phase 1 启动那天 |
 
