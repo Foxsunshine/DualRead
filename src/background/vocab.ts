@@ -15,6 +15,7 @@ import {
 } from "../shared/messages";
 import type { SyncErrorRecord } from "../shared/messages";
 import type { VocabWord } from "../shared/types";
+import { cloudSyncSnapshot } from "./cloudSync";
 
 interface PendingState {
   sets: Record<string, VocabWord>;
@@ -76,6 +77,14 @@ async function flush(): Promise<void> {
       await chrome.storage.local.set({ [LOCAL_KEY_LAST_SYNCED]: Date.now() });
       await chrome.storage.local.remove(LOCAL_KEY_LAST_ERROR);
       broadcastUpdated();
+      // Best-effort cloud mirror: dual-write the same snapshot to
+      // the backend's /vocab when the user is signed in. Fire-and-
+      // forget — the storage.sync write above already succeeded, so
+      // chrome.storage is the source of truth and a backend hiccup
+      // doesn't undo the local save. Errors land in console.warn
+      // (see cloudSync.ts for the rationale on not surfacing them
+      // through the panel's sync-status state).
+      void cloudSyncSnapshot(snapshot);
     } catch (err) {
       // Roll snapshot back onto pending, drop duplicates, and retry.
       for (const [k, w] of Object.entries(snapshot.sets)) {
