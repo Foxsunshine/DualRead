@@ -4,6 +4,13 @@
 > client-side，不动 eval pipeline / 翻译目标语切换 / Welcome 改造（后两件
 > 各自独立 brainstorm）。本文档跟踪 brainstorming skill 的全程产物到
 > Understanding Lock + Decision Log + 最终 Design + Implementation notes。
+>
+> **2026-04-25 修订（multi-agent review 后）**：详见 §9。要点：
+> - **P0-7**：Noto Sans JP **改本地 self-host**，不走 Google Fonts CDN
+>   （避免 manifest permission delta 触发 CWS human review）
+> - **P1-S1**：合 release 决策反转 — v2.2.0 = i18n + Welcome；v2.3
+>   target-lang 拆为独立 v2.3.0 release
+> - **P1-S2**：§6.8 加 register matrix 检查表
 
 ## 1. Context
 
@@ -498,10 +505,110 @@ v2.2 不能上 CWS 直到：
 
 ### 7.6 Done 定义（DoD）
 
-- [ ] §6.8 manual smoke 全 61 项 pass
+- [ ] §6.8 manual smoke 全 61 项 pass + §G register matrix（P1-S2 新加）
 - [ ] `npm run typecheck` + `npm test` + `npm run build` 全绿
 - [ ] gitleaks pre-commit pass（应该 trivial，无 secret 改动）
-- [ ] 4 commit 分组按 §7.2 落
+- [ ] 5 commit 分组按 §7.2 落（v2.2 i18n 4 commits + v2.4 welcome 1 commit）
 - [ ] v2.2.0 在本地 dist build 出 manifest version `"2.2.0"`
 - [ ] v2.0 + v2.1 上架后，本批 push 到 CWS
 - [ ] 上架后 1 周内监控 CWS reviews / GitHub issues 反馈翻译质量
+
+## 8. v2.x.x 系列 release 规划（multi-agent review 修订版）
+
+**原 Q-A 合 release 决策（v2.2 + v2.3 + v2.4 = 单一 v2.2.0）已反转**。
+新规划：
+
+```
+release v2.2.0  (5 commit, ~320 LOC, 低风险)
+├─ v2.2 i18n            (commit 1-4, ~250 LOC)
+└─ v2.4 welcome picker  (commit 5,    ~70 LOC)
+
+release v2.3.0  (7 commit, ~400 LOC, 中风险 - schema migration)
+└─ v2.3 target-lang     (独立 release，schema migration P0 修复完毕后单独审、
+                         单独 smoke、单独 ship)
+```
+
+理由（multi-agent P1-S1）：
+
+- v2.3 schema migration 是全套唯一中风险项；不该阻挡 v2.2 i18n + v2.4
+  welcome shipping
+- CWS minor-update fast-track 实测 1-2 天，"3 队 vs 1 队"实际差距 < 1 周
+- v2.3 独立审让 schema migration 的 6 项 P0 修复（multi-device race /
+  per-item 8KB / SW eviction / commit atomicity / empty-string poisoning /
+  read paths enumeration）有专注空间
+- 万一 v2.0 review 被拒后 hot-fix，v2.2.0 + v2.3.0 各自独立 rebase
+- Phase 1 backend 工作可在 v2.2.0 ship 后、v2.3.0 之前穿插（career
+  narrative 不被 polish 阻塞）
+
+## 9. Multi-agent review 修订记录（2026-04-25）
+
+multi-agent-brainstorming skill 跑了 Skeptic / Constraint Guardian / User
+Advocate / Scope reviewer 4 个独立角度，最终 disposition = **REVISE**。
+用户拍板"全接受 P0 + P1"，本节记录回流到本文档的修订。
+
+### 9.1 P0 修订（必改项，已合并到正文）
+
+#### P0-7：Noto Sans JP 不走 Google Fonts CDN（改本地 self-host）
+
+**问题**：v2.0 manifest `host_permissions = ["https://translate.googleapis.com/*"]`。
+若加 `fonts.googleapis.com` + `fonts.gstatic.com` 到 CSP / host_permissions =
+manifest permission delta = **几乎确定触发 CWS human review**（不是
+minor-update fast-track）。Constraint + Scope 双 reviewer 标 P0。
+
+**修订**：
+
+- **§6.3 file #7**：`sidepanel/styles.css` 改为加载本地 woff2 而不是 CDN
+  link
+- **§6.3 file #8**：`sidepanel/index.html` 不动（删 Google Fonts JP URL
+  方案），改在 styles.css 用 `@font-face`：
+  ```css
+  @font-face {
+    font-family: "Noto Sans JP";
+    src: url("./fonts/NotoSansJP-subset.woff2") format("woff2");
+    font-weight: 400 700;
+    font-display: swap;
+    unicode-range: U+3040-309F, U+30A0-30FF, U+FF66-FF9F, U+4E00-9FFF;
+  }
+  ```
+- **新增 file**：`src/sidepanel/fonts/NotoSansJP-subset.woff2`（本地 ~50KB
+  subset，仅含 hiragana + katakana + JIS 常用 kanji）—— 实装时可用
+  `glyphhanger` 或类似工具生成 subset；或临时直接用 Google Fonts 全量 JP
+  woff2 一次性下载并 commit（~3MB but only included once）
+- **assumption #5 修订**：字体加载是"本地资源 + `font-display: swap`"，
+  网络 CDN 不可达 risk 消除，但首次加载 layout shift 略微更明显（接受）
+
+### 9.2 P1 修订（建议改项，已合并）
+
+#### P1-S1：合 release 反转（详见 §8）
+
+#### P1-S2：§6.8 加 register matrix 检查（§G 新节）
+
+manual smoke checklist §6.8 加新节 §G — register consistency matrix：
+
+```
+§G — JA / FR register matrix (8 项)
+
+JA：
+- 按钮形 (命令形)：Save → 保存、Delete → 削除、Retry → 再試行、Close → 閉じる
+- 句子形 (です・ます)：welcomeBody / errorBody / loading / saved-toast → ます/です 结尾
+- 对照检查：button label 不应含 ます (例外: "保存しました" toast 必须是 です・ます)
+
+FR：
+- 按钮形 (impératif sans subject)：Save → Enregistrer、Delete → Supprimer、
+  Retry → Réessayer、Close → Fermer
+- 句子形 (vouvoiement présent)：welcomeBody / errorBody → vous + verbe
+- 对照检查：button label 不应含 "vous" / 句子形不应缺主语 vous
+
+通过标准：所有 button-form key 是命令形 / 所有 sentence-form key 是 polite form。
+混用 = 重译。
+```
+
+**实装时**：i18n.ts 新增 4 lang × 70 key 的过程中，把 JA / FR 注释里
+显式标 `// JA: 命令形` / `// JA: です・ます`，让 PR review 时一眼看到。
+
+### 9.3 P2 备忘（不阻 implement）
+
+| # | 项 | 处理 |
+|---|---|---|
+| P2-1 | `Lang` 类型 BCP-47 / ISO 混 → v3 backend 时 4-region migration | 接受为已知债，v3 backend 重构时 ~1 day cost |
+| P2-3 | `onInstalled` handler 异常崩溃 → 用户永久 zh-CN | 实装时给 `detectInitialLang` 调用包 try/catch fallback `"en"` |

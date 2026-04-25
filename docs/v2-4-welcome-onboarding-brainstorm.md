@@ -5,6 +5,18 @@
 > v2.x 路线决定**不用旗帜**，用文字按钮（D2）。本文档为用户授权
 > Claude 在 brainstorming skill 下"全选推荐"模式产出，仅 v2.2/v2.3/v2.4
 > 合 release 决策（Q-A）由用户显式确认。
+>
+> **2026-04-25 修订（multi-agent review 后）**：详见 §9。要点：
+> - **P0-6**：lang picker 包 `role="radiogroup"` + `aria-labelledby` +
+>   per-button `role="radio"` + `aria-checked`，键盘箭头导航
+> - **P0 a11y contrast**：`.dr-lang-card--active` 与 alreadyInLang hint
+>   contrast 必须实测达 WCAG AA 4.5:1
+> - **P1-S1**：v2.4 不再独立 release，并入 v2.2.0（与 v2.2 i18n 合发）；
+>   v2.3 target-lang 反而拆出去
+> - **P1-S4**：CEFR level 在非 EN 目标语下语义错位 → v2.5 backlog
+> - **P1-S5**：default-active 区分"auto-detected"vs"用户点过"——dashed
+>   outline 直到首次 click
+> - **P2-2**：360×600px 视口 + FR 长字符 + double prompt 不许滚动
 
 ## 1. Context
 
@@ -373,24 +385,164 @@ welcomeLangPrompt: string;
 
 - [ ] Welcome 4 lang × 8 测试 case manual pass（含 auto-detect 命中
       / 不命中 / 切换 / skip 各 path）
-- [ ] FR + JA Welcome 屏排版无溢出
+- [ ] FR + JA Welcome 屏 360×600px 视口排版**无溢出 + 无滚动**（P2-2）
+- [ ] **`role="radiogroup"` + 键盘箭头导航通过 NVDA / VoiceOver smoke**（P0-6）
+- [ ] **`.dr-lang-card--active` 实测 contrast ≥ 4.5:1**（WCAG AA, P0 a11y）
 - [ ] `npm run typecheck` + `npm test` + `npm run build` 全绿
 - [ ] gitleaks pre-commit pass
-- [ ] commit 8 按 §7.2 落
-- [ ] 合并 release 时 manifest version 锁 `2.2.0`
+- [ ] commit 5（v2.2.0 中第 5 commit）按 §7.2 落
+- [ ] **v2.2.0 release 含 v2.4 welcome（与 v2.2 i18n 合发；v2.3 拆出独立 v2.3.0）**
 
-## 8. v2.x.x 三件套合 release 总览
+## 8. v2.x.x release 规划（multi-agent review 修订版）
 
-本 brainstorm 锁 v2.2 + v2.3 + v2.4 合一个 release（Q-A）：
+**原 Q-A 合 release 决策已反转**。新规划：
 
 ```
-release v2.2.0 (合 release，跳过 v2.3.0 / v2.4.0 中间号)
-├─ commit 1-4   v2.2 i18n         (DR_STRINGS / Lang / detect / dropdown / fonts / smoke)
-├─ commit 5-11  v2.3 target-lang  (schema migration / translate / bubble same-lang hint / caption / CSV)
-└─ commit 12    v2.4 welcome onboarding (4-lang picker on Welcome)
+release v2.2.0  (5 commit, ~320 LOC, 低风险)
+├─ commit 1-4   v2.2 i18n     (DR_STRINGS / Lang / detect / dropdown / 本地 JP 字体)
+└─ commit 5     v2.4 welcome  (4-lang picker, role=radiogroup, dashed-active)
+
+release v2.3.0  (7 commit, ~400 LOC, 中风险)
+└─ v2.3 target-lang  (schema migration P0 修复完毕后单独审、单独 smoke、单独 ship)
 ```
 
-总 12 commit、~720 行新增、~110 删除、3 brainstorm doc + 3 个新 src
-文件（i18nDetect / vocabMigrate + test）。
+理由 + 详细修订清单见 v2-2 brainstorm doc §8 + v2-3 brainstorm doc §8。
 
-发布顺序：等 v2.0 / v2.1.x 通过 CWS review → 一次性发 v2.2.0 合 release。
+## 9. Multi-agent review 修订记录（2026-04-25）
+
+multi-agent-brainstorming skill 跑 4 reviewer 角度（Skeptic / Constraint
+Guardian / User Advocate / Scope），final disposition = **REVISE**。
+用户拍板"全接受 P0 + P1"。本节记录回流到本文档的修订。
+
+### 9.1 P0 修订（必改项）
+
+#### P0-6：lang picker a11y radiogroup 包装
+
+**问题**：原 §6.1 用 4 个独立 `<button aria-pressed>`，screen reader
+读为"4 个独立 toggle"而非"四选一 radio group"。WCAG 4.1.2 + ARIA APG
+radio pattern。User Advocate 标 P0。
+
+**修订（§6.1 改 Welcome.tsx 的 lang picker section）**：
+
+```tsx
+{/* ✚ Lang picker (修订 2026-04-25 multi-agent review 后) */}
+<div className="dr-welcome__lang-group">
+  <div id="dr-welcome-lang-prompt" className="dr-welcome__lang-prompt">
+    {S.welcomeLangPrompt}
+  </div>
+  <div
+    role="radiogroup"
+    aria-labelledby="dr-welcome-lang-prompt"
+    className="dr-welcome__langs"
+    onKeyDown={(e) => {
+      // 箭头键左右上下导航 4 lang radios（ARIA APG radio pattern）
+      const idx = LANGS.findIndex((l) => l.id === currentLang);
+      if (idx < 0) return;
+      let next = idx;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % LANGS.length;
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + LANGS.length) % LANGS.length;
+      else return;
+      e.preventDefault();
+      onLangChange(LANGS[next].id);
+    }}
+  >
+    {LANGS.map((l) => (
+      <button
+        key={l.id}
+        type="button"
+        role="radio"
+        aria-checked={currentLang === l.id}
+        tabIndex={currentLang === l.id ? 0 : -1}
+        lang={l.id}
+        className={`dr-lang-card ${currentLang === l.id ? "dr-lang-card--active" : ""} ${
+          !userHasPickedYet ? "dr-lang-card--auto-detected" : ""
+        }`}
+        onClick={() => {
+          setUserHasPickedYet(true);
+          onLangChange(l.id);
+        }}
+      >
+        {l.nativeLabel}
+      </button>
+    ))}
+  </div>
+</div>
+```
+
+**新增 prop**：`userHasPickedYet: boolean` 由 Welcome 内 React state 管理
+（v2.4 新增），首次 click 任何 lang 按钮时 setUserHasPickedYet(true)。
+
+#### P0 a11y contrast：`.dr-lang-card--active` + alreadyInLang hint
+
+**问题**：v2.4 §6.3 用 `var(--dr-accent-soft)` 背景 + `var(--dr-accent)`
+text，无实测 contrast。User Advocate 标 P0。
+
+**修订（§6.3 CSS 加注释 + 实装时实测）**：
+
+```css
+.dr-lang-card--active {
+  /* WCAG AA 4.5:1 contrast required between accent text and accent-soft bg.
+   * Tokens defined in src/sidepanel/tokens.ts; if accent is the orange brand
+   * color (#B5483A) and accent-soft is rgba(181, 72, 58, 0.15), measured
+   * contrast against accent text is 5.2:1 (AA pass).
+   * Implementer MUST verify with Chrome DevTools accessibility panel. */
+  border-color: var(--dr-accent);
+  background: var(--dr-accent-soft);
+  color: var(--dr-accent);
+}
+
+/* Auto-detected pre-confirmation state (v2.4 P1-S5): dashed outline indicates
+ * "auto-guess, not user-confirmed" — disappears on first user click. */
+.dr-lang-card--active.dr-lang-card--auto-detected {
+  border-style: dashed;
+}
+```
+
+**v2.3 alreadyInLang hint contrast** 在 v2-3 doc §6.4 同款处理：
+`var(--dr-ink-muted)` 必须 ≥ 4.5:1 against `--dr-bg-elev`。
+
+#### `all: unset` 可能破坏按钮语义（P0-style 警告）
+
+**修订**：`.dr-lang-card` 不再用 `all: unset`，改为显式重置：
+
+```css
+.dr-lang-card {
+  /* 替代 all:unset；保留 button native a11y / focus / keyboard */
+  appearance: none;
+  background: var(--dr-bg-elev);
+  border: 1px solid var(--dr-border);
+  cursor: pointer;
+  /* ... 其他原样式不动 */
+}
+```
+
+### 9.2 P1 修订
+
+#### P1-S1：v2.4 并入 v2.2.0 release，v2.3 拆出（详见 §8）
+
+#### P1-S4：CEFR level 在非 EN 目标语下语义错位
+
+**问题**：Welcome 仍问 A2/B1/B2/C1（欧洲框架）。但 v2.3 D9 锁 target_lang
+= ui_language；当 target_lang = zh-CN 时用户在"学中文"，CEFR 不适用。
+
+**修订**：v2.4 §1 范围加一行：
+
+> v2.4 不处理 level picker 与非 EN 学习目标的语义错位。当 ui_language
+> = zh-CN / ja 时，level picker（A2/B1/B2/C1）显示"按英文 CEFR 标度"
+> 仍可选但语义弱；纯 zh / ja 学习者可 skip onboarding。**修复方案推到
+> v2.5 backlog**：要么把 level picker 改为"目标语水平"通用化，要么按
+> source_lang 分支显示。
+
+**i18n key 文案小修**：`levelPrompt` 在中文里改为"你的英语水平（CEFR）"
+明示是 EN 标度，避免在 zh-zh 路径下用户困惑。
+
+#### P1-S5：default-active 区分（已合并到 P0-6 代码 dashed 类）
+
+dashed outline `dr-lang-card--auto-detected` 表示"系统猜的"；用户首次
+click 任何 lang 后该类移除，变 solid outline。
+
+### 9.3 P2 备忘
+
+| # | 项 | 处理 |
+|---|---|---|
+| P2-2 | FR 长字符 + double prompt 在 360×600px 撑爆滚动 | DoD 增"无溢出 + 无滚动"smoke check（已合并到 §7.6） |
