@@ -1,9 +1,10 @@
 # v3.1 Brainstorm — AI Engineering Layer (c+ 跳槽路线)
 
 > 2026-04-25 起头。v3.0 产品骨架（FastAPI + Postgres + Chrome 扩展 + Google
-> OAuth + Anthropic 直调 LLM）已完成 brainstorm 与 architecture 落盘
-> （`docs/v3-0-brainstorm-python.md` + `docs/v3-0-architecture.md`）。本轮在
-> 其上叠加一层 **AI 工程能力**，目的是把项目从"翻译 proxy + 共享缓存"升级
+> OAuth + Anthropic 直调 LLM）当时已完成 brainstorm 与 architecture 落盘
+> （`docs/v3-0-brainstorm-python.md`，已在 2026-04-25 docs cleanup 归档；
+> 结论合并入 `docs/v3-1-architecture.md`）。本轮在其上叠加一层
+> **AI 工程能力**，目的是把项目从"翻译 proxy + 共享缓存"升级
 > 为"生产级 LLM agent 系统"，作为用户跳槽 AI 行业的练手项目（c+ 路线：
 > AI 全栈主轴 + LangGraph 与 eval 两个尖峰）。
 >

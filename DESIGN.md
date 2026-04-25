@@ -697,7 +697,9 @@ After v1 shipped to the Chrome Web Store, hands-on testing surfaced four UX
 pain points around the selection → translate → save loop. A full redesign
 was run through the brainstorming skill, locked on 2026-04-22, and shipped
 as **v2.0.0** — submitted to the Chrome Web Store on 2026-04-22 (awaiting
-review). See `docs/v1-1-feedback.md` §12 for the full submission log.
+review). The original v1.1 brainstorm doc was archived in 2026-04-25 docs
+cleanup; consult `git log -- docs/v1-1-feedback.md` if you need the
+submission log.
 
 **What changes in v1.1**
 
@@ -709,11 +711,11 @@ review). See `docs/v1-1-feedback.md` §12 for the full submission log.
 6. **Master on/off FAB (D52–D57)** — a floating bottom-right button on every page toggles `settings.learning_mode_enabled`. Off = fully dormant page-side (no mouseup relay, no bubble, no highlights); side panel stays functional and shows a paused banner on the Translate tab. Replaces the short-lived Phase G PanelHeader toggle (D56 supersedes D40).
 7. **Brand icon refresh** — `icons/icon{16,48,128}.png` regenerated to a rounded orange square with a serif "D", matching the side panel's `LogoMark` so the action icon, extension list card, and in-panel logo read as one product.
 
-**Decisions** — D38 through D57 are documented in full, with alternatives
-and rationale, in [`docs/v1-1-feedback.md`](docs/v1-1-feedback.md), along
-with the complete architecture, component split, data flows, error handling,
-edge cases, and manual test checklists. That file is the authoritative
-v1.1 spec; this appendix is a pointer and change summary only.
+**Decisions** — D38 through D57 (alternatives, rationale, component split,
+data flows, error handling, manual test checklists) lived in
+`docs/v1-1-feedback.md`, archived in the 2026-04-25 docs cleanup.
+Recover via git history if a v1.1 audit is ever needed; this appendix
+is the day-to-day pointer.
 
 **Deferred to v1.2**
 - Jump-from-vocab-list-to-source-URL (user request F4, non-urgent)
@@ -724,8 +726,7 @@ v1.1 spec; this appendix is a pointer and change summary only.
 bubble's "View details" text link → icon-only button; new `isHighlightable()`
 predicate so long/CJK/multi-word vocab entries are persisted but skipped by
 the highlight engine; Settings gains a feedback block (email + GitHub Issues)
-above the danger zone. Details in
-[`docs/session-2026-04-23-brainstorm.md`](docs/session-2026-04-23-brainstorm.md).
+above the danger zone.
 
 **Cross-reference table**
 

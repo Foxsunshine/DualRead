@@ -81,7 +81,7 @@ Full design rationale and decision log: see [`DESIGN.md`](./DESIGN.md).
 **v2.0.0 submitted to the Chrome Web Store on 2026-04-22 — awaiting review.**
 
 - v1 (Phases 0 → 4): TS/React migration, side-panel shell, vocab storage + CSV export, highlight engine with click-to-focus, first-run polish, sync-status indicator, initial store submission.
-- v2.0 (v1.1 iteration, Phases A → I): translator moved to the background service worker, word-boundary snapping for drag selection, in-page Shadow-DOM translation bubble (click + drag parity), auto-switch to Translate tab on any fresh selection, floating learning-mode on/off button on every page, refreshed brand icon. Full design + decisions in [`docs/v1-1-feedback.md`](docs/v1-1-feedback.md) and [`DESIGN.md`](DESIGN.md) Appendix B.
+- v2.0 (v1.1 iteration, Phases A → I): translator moved to the background service worker, word-boundary snapping for drag selection, in-page Shadow-DOM translation bubble (click + drag parity), auto-switch to Translate tab on any fresh selection, floating learning-mode on/off button on every page, refreshed brand icon. Full design summary in [`DESIGN.md`](DESIGN.md) Appendix B (the long-form v1.1 brainstorm was archived in the 2026-04-25 docs cleanup; recover via git history if needed).
 
 ## License
 

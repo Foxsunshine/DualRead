@@ -1,8 +1,12 @@
 # DualRead v3.1 Architecture
 
-> 2026-04-25。本文档是 v3 系列的**完整架构真相源**，合并：
-> - `docs/v3-0-brainstorm-python.md` — 产品骨架决策（D68-D81 + D-PY1 ~ D-PY7）
-> - `docs/v3-1-ai-engineering-brainstorm.md` — AI 工程层决策（D-AI1 ~ D-AI16）
+> 2026-04-25。本文档是 v3 系列的**完整架构真相源**。
+>
+> 历史输入（决策记录原稿）：
+> - `docs/v3-0-brainstorm-python.md` — 产品骨架决策（D68-D81 + D-PY1 ~ D-PY7），
+>   2026-04-25 docs cleanup 时归档（结论已并入本文档；如需溯源走 git history）
+> - `docs/v3-1-ai-engineering-brainstorm.md` — AI 工程层决策（D-AI1 ~ D-AI16），
+>   保留作为决策推导的 source of truth
 >
 > **2026-04-25 同日修订（一）**：原 3 语（CN/JA/EN）扩为 4 语
 > （CN/JA/EN/FR），详见 ADR-A19 + 决策 D-PY7 + D-AI16。
@@ -1700,8 +1704,8 @@ markdown 报告 + 写 eval_run/eval_sample 表。
 
 #### 全新增（除上面 ✚ 项外）
 
-- `docs/` 全部架构文档（v3-0-brainstorm-python.md / v3-1-ai-engineering-brainstorm.md /
-  v3-1-architecture.md）
+- `docs/` 架构文档（v3-1-ai-engineering-brainstorm.md / v3-1-architecture.md；
+  v3-0-brainstorm-python.md 已在 2026-04-25 cleanup 中归档）
 - `.github/workflows/ext-ci.yml`（无 secrets，仅 tsc + vitest）
 - `env.example`（扩展 build 时的 `VITE_BACKEND_URL` 等）
 
