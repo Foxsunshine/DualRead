@@ -220,6 +220,25 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     learningModePausedTitle: "Learning mode paused",
     learningModePausedBody: "Click-to-translate, drag-to-translate, and page highlights are off. Click the floating button at the bottom-right of any page to turn them back on.",
   },
+  // v2.2 commit 1 placeholder. The Lang union now includes "ja" and "fr"
+  // so `Record<Lang, Strings>` requires explicit entries here, but the real
+  // native-language strings have not been written yet. Until commit 2
+  // (feat(sidepanel): extend DR_STRINGS to JA + FR) lands, ja and fr
+  // render English copy. Users in those locales temporarily see English
+  // for sidepanel UI between commit 1 and commit 2 — content-script
+  // bubble/toast/fab strings already fall through to English via the
+  // existing ternary `lang === "zh-CN" ? ... : ...` pattern, so the
+  // experience is consistent with the bubble during the transition.
+  // Identity reference (not a deep copy) is intentional — strings are
+  // immutable; sharing is fine and saves bytes in the dev build.
+  ja: undefined as unknown as Strings,
+  fr: undefined as unknown as Strings,
 };
+
+// Wire the placeholder identity references to the en object after the
+// dict literal closes (TypeScript would reject self-reference inside the
+// literal). Removed in commit 2 once ja/fr have real entries.
+DR_STRINGS.ja = DR_STRINGS.en;
+DR_STRINGS.fr = DR_STRINGS.en;
 
 export type { Strings };

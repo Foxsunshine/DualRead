@@ -1,4 +1,29 @@
-export type Lang = "zh-CN" | "en";
+// Supported UI languages for v2.2+. zh-CN keeps its BCP-47 region tag for
+// backward compatibility with values already persisted to chrome.storage.local
+// from v2.0/v2.1; the other three are bare ISO 639-1 codes because we do not
+// branch on region today (zh-TW falls back to zh-CN; en-GB to en; etc.).
+// Adding a new language means: extend this union, add a Record entry to every
+// dict typed with `Record<Lang, T>` (TS will fail to compile if any are
+// missed), and write the native-form label in Settings + Welcome.
+export type Lang = "zh-CN" | "en" | "ja" | "fr";
+
+// All currently valid Lang values, in display order. Used by:
+//  - the Settings dropdown options
+//  - the Welcome onboarding radio group
+//  - isValidLang() runtime guard below
+// Keep in sync with the union type above.
+export const VALID_LANGS: readonly Lang[] = ["zh-CN", "en", "ja", "fr"];
+
+// Runtime guard for storage reads. The Lang union is a TypeScript-only
+// constraint; chrome.storage values are `unknown` until parsed, so any code
+// path that hydrates Settings from storage MUST pipe `ui_language` through
+// this before trusting it. A user who manually edits storage to an
+// unsupported value (or a stale storage record from a future-version
+// downgrade) gets a fallback to "en" instead of a runtime crash inside
+// the i18n dict lookup.
+export function isValidLang(x: unknown): x is Lang {
+  return typeof x === "string" && (VALID_LANGS as readonly string[]).includes(x);
+}
 
 export type HighlightStyle = "underline" | "background";
 
