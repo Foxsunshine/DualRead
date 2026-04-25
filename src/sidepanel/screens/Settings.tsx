@@ -1,5 +1,6 @@
 import type { Strings } from "../i18n";
-import type { HighlightStyle, Settings as SettingsType } from "../../shared/types";
+import type { HighlightStyle, Lang, Settings as SettingsType } from "../../shared/types";
+import { isValidLang } from "../../shared/types";
 import type { SyncState, SyncStatus } from "../useSyncStatus";
 import { Toggle } from "../components/Toggle";
 
@@ -54,11 +55,35 @@ export function Settings({
       </div>
 
       <div className="dr-settings__group">
-        <div className="dr-settings__group-title">{S.uiLanguage}</div>
-        <div className="dr-lang-toggle">
-          <LangBtn label={S.zh} active={settings.ui_language === "zh-CN"} onClick={() => onChange({ ui_language: "zh-CN" })} />
-          <LangBtn label={S.en} active={settings.ui_language === "en"} onClick={() => onChange({ ui_language: "en" })} />
-        </div>
+        <label className="dr-settings__group-title" htmlFor="dr-lang-select">
+          {S.uiLanguage}
+        </label>
+        {/*
+          v2.2 D6: native-form 4-option dropdown replaces the v1 2-button
+          toggle. Each <option lang="…"> hint lets screen readers switch
+          synth voice for the option label (NVDA / Chromium support is
+          best-effort, but VoiceOver respects it well). The option labels
+          are intentionally NOT translated through DR_STRINGS — every
+          language picker by convention shows each language in its own
+          form so a user landed on a foreign UI can find their way home.
+        */}
+        <select
+          id="dr-lang-select"
+          className="dr-lang-select"
+          value={settings.ui_language}
+          onChange={(e) => {
+            const v = e.target.value;
+            // Type-guarded write: <select> values are stringly typed; reject
+            // any drift via the runtime guard before persisting. Should be
+            // unreachable since we control the option list, but cheap.
+            if (isValidLang(v)) onChange({ ui_language: v as Lang });
+          }}
+        >
+          <option value="zh-CN" lang="zh-CN">{S.zh}</option>
+          <option value="en" lang="en">{S.en}</option>
+          <option value="ja" lang="ja">{S.ja}</option>
+          <option value="fr" lang="fr">{S.fr}</option>
+        </select>
       </div>
 
       <div className="dr-settings__group">
@@ -212,18 +237,6 @@ function SyncIndicator({ S, status, syncedAtLabel, syncedCount }: SyncIndicatorP
         <div className="dr-sync__detail">{detail}</div>
       </div>
     </div>
-  );
-}
-
-function LangBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className={`dr-lang-toggle__btn ${active ? "dr-lang-toggle__btn--active" : ""}`}
-      onClick={onClick}
-    >
-      {label}
-    </button>
   );
 }
 

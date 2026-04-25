@@ -20,7 +20,13 @@
   --dr-red-soft: rgba(181, 72, 58, 0.15);
   --dr-red-border: rgba(181, 72, 58, 0.19);
 
-  --dr-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
+  /* v2.2 / D3 + P0-7: Noto Sans JP slotted before Noto Sans SC so JA UI
+   * (especially hiragana/katakana, which Noto Sans SC does NOT cover)
+   * gets proper kana glyphs. Loaded as a self-hosted @fontsource/noto-sans-jp
+   * package (imported in main.tsx) — no external CDN, no host_permissions
+   * delta, no CWS full-re-review trigger. Browsers smart-download only the
+   * unicode-range subset(s) actually rendered. */
+  --dr-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans JP", "Noto Sans SC", sans-serif;
   /* v2.1 / D62: swapped Instrument Serif → Fraunces. The v2.0 face read as
    * "too thin / too tall" for the density of a 360 px side panel; Fraunces
    * has the same editorial flavor but ships an explicit SOFT axis we can
@@ -680,28 +686,37 @@ button { font-family: inherit; }
   font-family: var(--dr-font-mono);
 }
 
-.dr-lang-toggle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* v2.2 D6: native <select> dropdown replaces the v1 2-button toggle.
+ * 4-option (zh-CN / en / ja / fr) — full-width to match the existing
+ * settings control rhythm; appearance:none plus a subtle caret keep the
+ * Mac/Win UA dropdowns from looking out of place against the rest of the
+ * sidepanel. The caret is an inline SVG data URL so the control needs no
+ * extra DOM. */
+.dr-lang-select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 10px 36px 10px 12px;
   border: 1px solid var(--dr-border);
   border-radius: 8px;
-  overflow: hidden;
-  background: var(--dr-bg-raised);
-}
-.dr-lang-toggle__btn {
-  padding: 10px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--dr-ink-soft);
-  background: transparent;
-  border: none;
-  cursor: pointer;
+  background-color: var(--dr-bg-raised);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%236B5E51' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 5 6 8 9 5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: var(--dr-ink);
   font-family: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 120ms ease;
 }
-.dr-lang-toggle__btn--active {
-  background: var(--dr-accent);
-  color: #fff;
-  font-weight: 600;
+.dr-lang-select:hover {
+  border-color: var(--dr-ink-muted);
+}
+.dr-lang-select:focus-visible {
+  outline: 2px solid var(--dr-accent);
+  outline-offset: 1px;
+  border-color: var(--dr-accent);
 }
 
 .dr-sync {

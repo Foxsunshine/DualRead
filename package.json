@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans-jp": "^5.2.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

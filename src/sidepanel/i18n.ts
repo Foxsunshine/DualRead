@@ -51,8 +51,16 @@ interface Strings {
   highlightUnderline: string;
   highlightBackground: string;
   uiLanguage: string;
+  // Native-form labels for the four supported UI languages. Used by both
+  // the Settings dropdown and the Welcome onboarding picker so a user
+  // landed on a UI in a language they don't speak can still find their
+  // own. Each label is in its OWN language (中文 / English / 日本語 /
+  // Français), not in the current UI language — this is the convention
+  // every major app follows for the language picker affordance.
   zh: string;
   en: string;
+  ja: string;
+  fr: string;
   syncStatus: string;
   synced: string;
   syncing: string;
@@ -90,7 +98,11 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "在任何网页上选中一个不认识的词，DualRead 会把它翻译给你，再帮你把它保存到生词本。之后这个词每次出现，都会被轻轻标出来，让你重新认识它。",
     welcomeCta: "开始使用",
     welcomeSkip: "先看看设置",
-    levelPrompt: "你的英文水平",
+    // P1-S4 (multi-agent review): clarify the CEFR scale is for English
+    // specifically, since v2.3 will let users pick non-EN target_lang where
+    // CEFR doesn't apply. Full fix (hide / rename for non-EN learners)
+    // deferred to v2.5.
+    levelPrompt: "你的英文水平（CEFR）",
     levelA2: "入门 · A2",
     levelB1: "进阶 · B1",
     levelB2: "中级 · B2",
@@ -132,6 +144,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     uiLanguage: "界面语言",
     zh: "简体中文",
     en: "English",
+    ja: "日本語",
+    fr: "Français",
     syncStatus: "同步状态",
     synced: "已同步",
     syncing: "正在同步…",
@@ -161,7 +175,9 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "Select any word you don't know on any webpage. DualRead translates it and saves it for you. Next time it appears anywhere online, it'll be gently marked so you can recognize it again.",
     welcomeCta: "Get started",
     welcomeSkip: "See settings first",
-    levelPrompt: "Your English level",
+    // P1-S4: CEFR scale is EN-specific; v2.3+ allows non-EN target_lang.
+    // Full fix deferred to v2.5.
+    levelPrompt: "Your English level (CEFR)",
     levelA2: "Beginner · A2",
     levelB1: "Elementary · B1",
     levelB2: "Intermediate · B2",
@@ -203,6 +219,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     uiLanguage: "Interface language",
     zh: "简体中文",
     en: "English",
+    ja: "日本語",
+    fr: "Français",
     syncStatus: "Sync status",
     synced: "Synced",
     syncing: "Syncing…",
@@ -220,25 +238,170 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     learningModePausedTitle: "Learning mode paused",
     learningModePausedBody: "Click-to-translate, drag-to-translate, and page highlights are off. Click the floating button at the bottom-right of any page to turn them back on.",
   },
-  // v2.2 commit 1 placeholder. The Lang union now includes "ja" and "fr"
-  // so `Record<Lang, Strings>` requires explicit entries here, but the real
-  // native-language strings have not been written yet. Until commit 2
-  // (feat(sidepanel): extend DR_STRINGS to JA + FR) lands, ja and fr
-  // render English copy. Users in those locales temporarily see English
-  // for sidepanel UI between commit 1 and commit 2 — content-script
-  // bubble/toast/fab strings already fall through to English via the
-  // existing ternary `lang === "zh-CN" ? ... : ...` pattern, so the
-  // experience is consistent with the bubble during the transition.
-  // Identity reference (not a deep copy) is intentional — strings are
-  // immutable; sharing is fine and saves bytes in the dev build.
-  ja: undefined as unknown as Strings,
-  fr: undefined as unknown as Strings,
+  // v2.2 commit 2: real JA translations.
+  // Register conventions (per §9.2 P1-S2 register matrix):
+  //   - Buttons / commands: 命令形 (e.g., 保存 / 削除 / 再試行) — never
+  //     ます-form on a button label.
+  //   - Sentences / errors / hints / toasts: ですます調 polite form.
+  //   - Toast confirmation uses past polite (保存しました) — convention
+  //     for system feedback in JA UI.
+  ja: {
+    appName: "DualRead",
+    tagline: "気になった単語を、その場で。",
+    translate: "翻訳",
+    vocab: "単語帳",
+    settings: "設定",
+    welcomeHello: "こんにちは 👋",
+    welcomeHeading: "英語を読みながら、単語を集めよう",
+    welcomeBody:
+      "ウェブページで知らない単語を選択すると、DualRead が翻訳して単語帳に保存します。次に同じ単語が現れたとき、そっとマークするので、もう一度出会えます。",
+    welcomeCta: "始める",
+    welcomeSkip: "設定を見る",
+    levelPrompt: "あなたの英語レベル（CEFR）",
+    levelA2: "初級 · A2",
+    levelB1: "初中級 · B1",
+    levelB2: "中級 · B2",
+    levelC1: "上級 · C1",
+    selectPrompt: "ウェブページで英語を選択すると、ここに翻訳が表示されます。",
+    selectHint: "ページに戻って、知らない単語を選択してみてください。",
+    selectionLabel: "選択範囲",
+    translationLabel: "翻訳",
+    contextLabel: "前後の文脈",
+    sourceLabel: "出典",
+    saveBtn: "単語帳に保存",
+    savedBtn: "保存済み",
+    goToPage: "ページへ移動",
+    addNote: "メモを追加",
+    translatingLabel: "翻訳中…",
+    poweredBy: "Google 翻訳",
+    translateErrorRateLimit: "翻訳サービスが一時的に制限されています。少し待ってから再試行してください。",
+    translateErrorNetwork: "ネットワークの問題が発生しました。接続を確認して再試行してください。",
+    translateErrorGeneric: "翻訳に失敗しました。少し待ってから再試行してください。",
+    vocabEmpty: "保存した単語はまだありません",
+    vocabEmptyBody: "ウェブページで知らない単語を選択して「保存」を押すと、ここに表示されます。",
+    searchPlaceholder: "単語を検索…",
+    sortRecent: "最近",
+    sortAlpha: "A → Z",
+    export: "CSV を書き出す",
+    exportHint: "Anki やスプレッドシートに取り込めます",
+    delete: "削除",
+    edit: "編集",
+    noteField: "メモ",
+    noteAdd: "メモを追加…",
+    wordsCount: (n) => `${n} 単語`,
+    quotaNear: "500 単語の上限に近づいています",
+    quotaBody: "CSV をバックアップして、覚えた単語をアーカイブしてください。",
+    highlightAuto: "自動ハイライト",
+    highlightAutoHint: "保存した単語をすべてのページでハイライト表示します",
+    highlightStyle: "ハイライトスタイル",
+    highlightUnderline: "下線",
+    highlightBackground: "背景",
+    uiLanguage: "表示言語",
+    zh: "简体中文",
+    en: "English",
+    ja: "日本語",
+    fr: "Français",
+    syncStatus: "同期ステータス",
+    synced: "同期済み",
+    syncing: "同期中…",
+    syncingItems: (n) => `${n} 件を同期中…`,
+    syncOffline: "オフライン",
+    syncOfflineHint: "オフラインです。再接続後に同期されます。",
+    syncError: "同期エラー",
+    syncErrorDetail: (code) => `エラー: ${code}（再試行中）`,
+    syncedAt: (t) => `最終同期 ${t}`,
+    syncRetry: "再試行",
+    clearData: "すべてのデータを削除",
+    clearDataHint: "保存したすべての単語と設定を削除します。元に戻せません。",
+    feedbackTitle: "フィードバック / バグ報告",
+    savedToast: "保存しました",
+    learningModePausedTitle: "学習モードは一時停止中です",
+    learningModePausedBody:
+      "クリック翻訳・ドラッグ翻訳・ページ内ハイライトはオフです。ページ右下のフローティングボタンで再開できます。",
+  },
+  // v2.2 commit 2: real FR translations.
+  // Register conventions (per §9.2 P1-S2 register matrix):
+  //   - Buttons / commands: impératif sans pronom (Enregistrer /
+  //     Supprimer / Réessayer) — never indicatif présent.
+  //   - Sentences / errors / hints / toasts: vouvoiement présent
+  //     (Vous êtes hors ligne / Sélectionnez du texte) — never tutoiement.
+  fr: {
+    appName: "DualRead",
+    tagline: "Capturez les mots au fil de la lecture.",
+    translate: "Traduire",
+    vocab: "Vocabulaire",
+    settings: "Paramètres",
+    welcomeHello: "Bonjour 👋",
+    welcomeHeading: "Lisez en anglais, gardez les mots.",
+    welcomeBody:
+      "Sélectionnez n'importe quel mot inconnu sur n'importe quelle page web. DualRead le traduit et l'ajoute à votre liste de vocabulaire. La prochaine fois qu'il apparaîtra, il sera discrètement marqué pour vous le faire reconnaître.",
+    welcomeCta: "Commencer",
+    welcomeSkip: "Voir les paramètres",
+    levelPrompt: "Votre niveau d'anglais (CEFR)",
+    levelA2: "Débutant · A2",
+    levelB1: "Pré-intermédiaire · B1",
+    levelB2: "Intermédiaire · B2",
+    levelC1: "Avancé · C1",
+    selectPrompt: "Sélectionnez du texte anglais sur une page — la traduction s'affichera ici.",
+    selectHint: "Retournez sur la page et sélectionnez un mot inconnu.",
+    selectionLabel: "Sélection",
+    translationLabel: "Traduction",
+    contextLabel: "Contexte",
+    sourceLabel: "Source",
+    saveBtn: "Ajouter au vocabulaire",
+    savedBtn: "Enregistré",
+    goToPage: "Aller à la page",
+    addNote: "Ajouter une note",
+    translatingLabel: "Traduction…",
+    poweredBy: "Google Traduction",
+    translateErrorRateLimit:
+      "Le service de traduction est momentanément limité. Réessayez dans un instant.",
+    translateErrorNetwork: "Problème réseau — vérifiez votre connexion et réessayez.",
+    translateErrorGeneric: "Échec de la traduction. Réessayez bientôt.",
+    vocabEmpty: "Aucun mot enregistré",
+    vocabEmptyBody:
+      "Sélectionnez des mots inconnus sur une page web et cliquez sur Enregistrer — ils apparaîtront ici.",
+    searchPlaceholder: "Rechercher dans le vocabulaire…",
+    sortRecent: "Récent",
+    sortAlpha: "A → Z",
+    export: "Exporter en CSV",
+    exportHint: "À importer dans Anki ou un tableur",
+    delete: "Supprimer",
+    edit: "Modifier",
+    noteField: "Note",
+    noteAdd: "Ajouter une note…",
+    wordsCount: (n) => `${n} mot${n === 1 ? "" : "s"}`,
+    quotaNear: "Vous approchez de la limite de 500 mots",
+    quotaBody: "Exportez une sauvegarde CSV et archivez les mots déjà appris.",
+    highlightAuto: "Surlignage automatique",
+    highlightAutoHint: "Surligne les mots enregistrés sur toutes les pages web",
+    highlightStyle: "Style de surlignage",
+    highlightUnderline: "Souligné",
+    highlightBackground: "Arrière-plan",
+    uiLanguage: "Langue de l'interface",
+    zh: "简体中文",
+    en: "English",
+    ja: "日本語",
+    fr: "Français",
+    syncStatus: "État de synchronisation",
+    synced: "Synchronisé",
+    syncing: "Synchronisation…",
+    syncingItems: (n) => `Synchronisation de ${n} modification${n === 1 ? "" : "s"}…`,
+    syncOffline: "Hors ligne",
+    syncOfflineHint:
+      "Vous êtes hors ligne. Les modifications seront synchronisées à la reconnexion.",
+    syncError: "Erreur de synchronisation",
+    syncErrorDetail: (code) => `Erreur : ${code} (nouvelle tentative)`,
+    syncedAt: (t) => `Dernière synchronisation : ${t}`,
+    syncRetry: "Réessayer",
+    clearData: "Effacer toutes les données",
+    clearDataHint: "Supprime tous les mots enregistrés et les paramètres. Cette action est irréversible.",
+    feedbackTitle: "Commentaires / Rapport de bug",
+    savedToast: "Enregistré",
+    learningModePausedTitle: "Mode apprentissage en pause",
+    learningModePausedBody:
+      "Le clic-traduire, le glisser-traduire et le surlignage de page sont désactivés. Cliquez sur le bouton flottant en bas à droite de la page pour les réactiver.",
+  },
 };
-
-// Wire the placeholder identity references to the en object after the
-// dict literal closes (TypeScript would reject self-reference inside the
-// literal). Removed in commit 2 once ja/fr have real entries.
-DR_STRINGS.ja = DR_STRINGS.en;
-DR_STRINGS.fr = DR_STRINGS.en;
 
 export type { Strings };
