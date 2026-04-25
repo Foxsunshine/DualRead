@@ -413,11 +413,19 @@ async function init(): Promise<void> {
   // back to the FOCUS_WORD_IN_VOCAB broadcast (which still works, just
   // won't open a closed panel). In practice the init handshake lands
   // in <50 ms on warm workers, well before any click.
-  void sendMessage({ type: "GET_TAB_ID" }).then((resp) => {
-    if (resp.ok && typeof resp.data === "number") {
-      cachedTabId = resp.data;
-    }
-  });
+  // .catch is defensive belt-and-braces — sendMessage now always resolves
+  // (it converts context-invalidation throws into `{ ok: false, ... }`),
+  // but a missing .catch on a `void` chain would be a regression hazard
+  // if that contract ever changed.
+  void sendMessage({ type: "GET_TAB_ID" })
+    .then((resp) => {
+      if (resp.ok && typeof resp.data === "number") {
+        cachedTabId = resp.data;
+      }
+    })
+    .catch(() => {
+      /* swallow — tabId stays null; sidePanel.open simply no-ops */
+    });
   highlighter.setStyle(settings.highlight_style);
   highlighter.setVocab(vocab.keys);
   // Highlighter is gated on both the per-feature auto_highlight setting

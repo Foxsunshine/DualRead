@@ -39,15 +39,38 @@ export type MessageResponse =
   | { ok: true; data?: TranslateResult | VocabWord[] | null | unknown }
   | { ok: false; error: string };
 
+// `chrome.runtime.sendMessage` can fail in two distinct ways:
+//   (1) the call returns a runtime error via `chrome.runtime.lastError` —
+//       handled in the callback path below;
+//   (2) the call itself THROWS synchronously when the extension context
+//       has been invalidated (the page survived a service-worker reload
+//       and is now talking to a dead worker). The Promise constructor
+//       would convert that throw into a rejection, and any caller that
+//       forgets `.catch()` (or uses `void sendMessage(...)`) would
+//       surface it as an "Uncaught (in promise)" — exactly the v2.1.1
+//       Reddit-page report.
+// Wrapping the inner call in try/catch normalizes both paths into a
+// resolved `{ ok: false, error }` so every caller — including
+// fire-and-forget ones — sees a single contract.
 export function sendMessage<T extends Message>(msg: T): Promise<MessageResponse> {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage(msg, (resp: MessageResponse | undefined) => {
-      if (chrome.runtime.lastError) {
-        resolve({ ok: false, error: chrome.runtime.lastError.message ?? "runtime error" });
-        return;
-      }
-      resolve(resp ?? { ok: false, error: "no response" });
-    });
+    try {
+      chrome.runtime.sendMessage(msg, (resp: MessageResponse | undefined) => {
+        if (chrome.runtime.lastError) {
+          resolve({
+            ok: false,
+            error: chrome.runtime.lastError.message ?? "runtime error",
+          });
+          return;
+        }
+        resolve(resp ?? { ok: false, error: "no response" });
+      });
+    } catch (e) {
+      resolve({
+        ok: false,
+        error: e instanceof Error ? e.message : "context_invalidated",
+      });
+    }
   });
 }
 
