@@ -80,6 +80,45 @@ export async function apiGet<T>(path: string, jwt: string): Promise<T> {
   return (await resp.json()) as T;
 }
 
+// Wire shape of POST /translate's response (app/schemas/translate.py
+// TranslateResponse). detected_lang and cached are server-side
+// hints — the extension only really needs `translation`, but
+// surfacing detected_lang lets the panel UI verify the source
+// language Google reports back.
+export interface TranslateResponseBody {
+  translation: string;
+  detected_lang: string | null;
+  cached: boolean;
+}
+
+// Anonymous POST /translate. Backend `/translate` does NOT require
+// a session JWT — it's IP-rate-limited rather than user-rate-limited.
+// We keep the call here in api.ts (alongside apiGet, ApiError) so all
+// backend HTTP routes share one client + one error type.
+//
+// source_lang is omitted from the request when null, which the
+// backend interprets as "auto-detect" (it omits source from the
+// Google MT v2 payload). target_lang is mandatory.
+export async function requestTranslate(
+  text: string,
+  targetLang: string,
+): Promise<TranslateResponseBody> {
+  const resp = await fetch(`${API_BASE_URL}/translate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      target_lang: targetLang,
+      // source_lang intentionally omitted — extension doesn't know.
+    }),
+  });
+  if (resp.status !== 200) {
+    const detail = await safeReadDetail(resp);
+    throw new ApiError(resp.status, `/translate ${resp.status}`, detail);
+  }
+  return (await resp.json()) as TranslateResponseBody;
+}
+
 // Reads the FastAPI-shaped `{ "detail": "..." }` if present without
 // throwing on a malformed body. Used purely for error messages — we
 // never branch on the value of detail since opaque 401s by design
