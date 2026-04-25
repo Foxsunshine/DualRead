@@ -5,8 +5,21 @@
     <title>DualRead</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Font stack (v2.1 / D62):
+        - Inter            — body sans
+        - Fraunces         — display serif. We pull three variable axes
+          (opsz, wght, SOFT) so per-selector tuning can set optical-sized
+          weight and a mid-SOFT roundness without extra HTTP requests.
+          `opsz,wght,SOFT@9..144,400..500,0..100` covers every call site in
+          styles.css and keeps the total transfer ≈ one variable family.
+          Instrument Serif (v2.0) retired — same role, but visually too thin
+          / contrasty for Chinese-speaking readers per v2.1 brainstorm item 3.
+        - JetBrains Mono   — IPA / code / meta labels
+        - Noto Sans SC     — Chinese fallback
+    -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400..500,0..100&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>

@@ -5,6 +5,7 @@
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "homepage_url": "https://github.com/Foxsunshine/DualRead",
+  "minimum_chrome_version": "139",
   "permissions": ["storage", "sidePanel", "contextMenus", "downloads"],
   "host_permissions": ["https://translate.googleapis.com/*"],
   "action": {

@@ -61,9 +61,21 @@ export function bubbleCSS(): string {
   gap: 8px;
 }
 
+/* v2.1.1 / DL-3: long-phrase variant — the word div is gone, so the
+   close × needs to sit flush right. Align to the end so we don't get
+   a stretched row with a lonely button floating at the center. */
+.dr-bubble__row--no-word {
+  justify-content: flex-end;
+}
+
+/* v2.1.1 / DL-2: the original word demotes from "title" to "caption".
+   Smaller, lighter weight, muted color — makes it clear the *translation*
+   is the scannable payload. Interior case intentionally preserved
+   (no text-transform) because acronyms like 'U.S' look wrong lowercased. */
 .dr-bubble__word {
-  font-weight: 600;
-  color: ${DR_TOKENS.ink};
+  font-size: 12px;
+  font-weight: 500;
+  color: ${DR_TOKENS.inkMuted};
   word-break: break-word;
   flex: 1;
   min-width: 0;
@@ -92,9 +104,16 @@ export function bubbleCSS(): string {
   outline-offset: 1px;
 }
 
+/* v2.1.1 / DL-2: translation is now the primary surface — 16 px / 600 /
+   ink (the same recipe as the "Saved toast" body to read as one voice
+   across content-layer surfaces). The previous inkSoft tone is retired
+   here; note / error lines still use it below so they stay secondary. */
 .dr-bubble__translation {
   margin-top: 4px;
-  color: ${DR_TOKENS.inkSoft};
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: ${DR_TOKENS.ink};
   word-break: break-word;
 }
 
@@ -114,17 +133,43 @@ export function bubbleCSS(): string {
   gap: 6px;
 }
 
+/* v2.1.1 / DL-4: Save / Saved shrunk to an icon + 11 px label. Same
+   height as detail/delete's 28 px hit-area so the actions row keeps a
+   stable baseline; width hugs the label since icon-only would sacrifice
+   the "Save" CTA discoverability for first-time users.
+   Main (Save) variant: accent fill, white glyph + text — keeps the "main
+   action" signal readable. Saved variant below flips to sage soft. */
 .dr-bubble__btn {
   all: unset;
   cursor: pointer;
   box-sizing: border-box;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  height: 22px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
   background: ${DR_TOKENS.accent};
   color: #FFFFFF;
-  transition: background 120ms ease;
+  transition: background 120ms ease, color 120ms ease;
+  /* The label can carry 2 Chinese chars or ~6 English chars. A hard cap
+     keeps the row from stretching on accidental locale swaps or very
+     long future labels — overflow is trimmed with an ellipsis rather
+     than wrapping, because the button is single-row by design. */
+  max-width: 120px;
+}
+.dr-bubble__btn-icon {
+  flex: 0 0 auto;
+  display: inline-block;
+}
+.dr-bubble__btn-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dr-bubble__btn:hover {
   background: ${DR_TOKENS.accentInk};
@@ -133,8 +178,17 @@ export function bubbleCSS(): string {
   outline: 2px solid ${DR_TOKENS.accentInk};
   outline-offset: 1px;
 }
+/* Saved variant (disabled). The [disabled] selector on its own used to
+   catch the v2.0 "Saved" button; now that Saved is a distinct class, we
+   bind the sage-soft palette directly to the new modifier and keep
+   [disabled] as a belt-and-braces fallback for future read-only states. */
+.dr-bubble__btn--saved,
 .dr-bubble__btn[disabled] {
   cursor: default;
+  background: ${DR_TOKENS.sageSoft};
+  color: ${DR_TOKENS.sage};
+}
+.dr-bubble__btn--saved:hover {
   background: ${DR_TOKENS.sageSoft};
   color: ${DR_TOKENS.sage};
 }
@@ -162,6 +216,35 @@ export function bubbleCSS(): string {
   color: ${DR_TOKENS.accent};
 }
 .dr-bubble__detail:focus-visible {
+  outline: 2px solid ${DR_TOKENS.accent};
+  outline-offset: 1px;
+}
+
+/* Trash-can button in the saved-word variant (v2.1 / D58).
+   Same chassis as .dr-bubble__detail so the two icon buttons sit visually
+   matched in the actions row. Intentionally uses the accent color (not the
+   red danger token) — the affordance is "remove this word", the safety net
+   is the 5s undo toast, not a scary red hue. The SVG ships at 14 px inside
+   a 6 px pad = 26 px clickable; close to the 28 px target the brainstorm
+   quotes, with 2 px absorbed by baseline alignment in the flex row. */
+.dr-bubble__del {
+  all: unset;
+  cursor: pointer;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 6px;
+  color: ${DR_TOKENS.accentInk};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+.dr-bubble__del:hover {
+  background: ${DR_TOKENS.borderSoft};
+  color: ${DR_TOKENS.accent};
+}
+.dr-bubble__del:focus-visible {
   outline: 2px solid ${DR_TOKENS.accent};
   outline-offset: 1px;
 }

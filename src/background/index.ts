@@ -46,31 +46,23 @@ async function handleSelectionChanged(payload: SelectionPayload): Promise<void> 
 
 // ───── Vocab-focus request → panel ───────────────────────────
 // Triggered by the content script when the user explicitly asks to see a
-// word's vocab details — in v1 this fired on any highlight click; in v1.1
-// it fires only from the bubble's "打开详情" link (D51). Two jobs:
+// word's vocab details. Two jobs:
 //   1. Stash the word_key in session storage so a freshly-opened side panel
 //      can hydrate onto the Vocab tab at that word (late-open path).
-//   2. Attempt to open the side panel for the originating tab, then broadcast
-//      FOCUS_WORD for any already-open panel instance (live-push path).
+//   2. Broadcast FOCUS_WORD for any already-open panel instance
+//      (live-push path).
 //
-// DESIGN.md Spike S1: content → background → sidePanel.open() can break the
-// user-gesture chain in practice. We still *try* sidePanel.open because it
-// succeeds in enough cases to matter (toolbar already opened once, chain
-// preserved, etc.); when it fails we silently fall back to "panel opens next
-// time the user clicks the toolbar, and picks up the pending word then".
-async function handleFocusWordInVocab(word_key: string, tabId: number | undefined): Promise<void> {
+// v2.1.1 / DL-5: `sidePanel.open()` has moved to the content script (it
+// needs a real user-gesture and this background path was breaking that
+// chain — DESIGN.md Spike S1). We keep this handler minimal: session
+// write + broadcast. The content side tried to open the panel just
+// before sending this message, so by the time the broadcast lands the
+// panel is (or is becoming) available to receive it.
+async function handleFocusWordInVocab(word_key: string): Promise<void> {
   const key = word_key.trim().toLowerCase();
   if (!key) return;
 
   await chrome.storage.session.set({ [SESSION_KEY_PENDING_FOCUS]: key });
-
-  if (tabId !== undefined) {
-    try {
-      await chrome.sidePanel.open({ tabId });
-    } catch {
-      /* user-gesture lost or panel already open — live broadcast below still fires */
-    }
-  }
 
   chrome.runtime
     .sendMessage({ type: "FOCUS_WORD", word_key: key })
@@ -114,10 +106,19 @@ chrome.runtime.onMessage.addListener(
         return false;
 
       case "FOCUS_WORD_IN_VOCAB":
-        // Bubble's "打开详情" link (v1.1). sender.tab.id is the page that
-        // originated the click; we need it to route sidePanel.open() at the
-        // correct window.
-        void handleFocusWordInVocab(msg.word_key, sender.tab?.id);
+        // Bubble's "打开详情" link. v2.1.1 / DL-5: content side already
+        // called `sidePanel.open({ tabId })` inside its click handler,
+        // so we just do the session + broadcast half.
+        void handleFocusWordInVocab(msg.word_key);
+        return false;
+
+      case "GET_TAB_ID":
+        // v2.1.1 / DL-5: synchronous answer from the sender frame's own
+        // metadata. `sender.tab` is undefined for extension-internal
+        // senders (devtools, side panel); reply with `null` in that
+        // case so the content side can distinguish "not a tab" from
+        // "tab 0" (which is a valid Chrome tabId).
+        sendResponse({ ok: true, data: sender.tab?.id ?? null });
         return false;
 
       case "SHOW_SELECTION":

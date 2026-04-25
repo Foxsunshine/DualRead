@@ -26,7 +26,14 @@ export type Message =
   | { type: "DELETE_WORD"; word_key: string }
   | { type: "GET_VOCAB" }
   | { type: "CLEAR_DATA" }
-  | { type: "VOCAB_UPDATED" };
+  | { type: "VOCAB_UPDATED" }
+  // v2.1.1 / DL-5: content script asks the background for its own tabId
+  // once at init so it can later call `chrome.sidePanel.open({ tabId })`
+  // directly inside a user-gesture stack. Background reads the answer
+  // straight off `sender.tab.id` (cheap, synchronous). Separate from
+  // SELECTION_CHANGED because that one is fire-and-forget and we don't
+  // want to weld a response contract onto it.
+  | { type: "GET_TAB_ID" };
 
 export type MessageResponse =
   | { ok: true; data?: TranslateResult | VocabWord[] | null | unknown }

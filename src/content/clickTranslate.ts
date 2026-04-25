@@ -32,8 +32,11 @@
 
 import type { VocabWord, TranslateResult, Settings, Lang } from "../shared/types";
 import type { BubbleHandle, BubbleAnchor, BubbleStrings } from "./bubble";
+import type { UndoToastHandle } from "./toast";
 import { sendMessage, STORAGE_PREFIX_VOCAB } from "../shared/messages";
 import { wordAtOffset } from "./wordBoundary";
+import { stripOuterPunctuation } from "../shared/punctuation";
+import { isPointInAnyRect } from "./hitTest";
 
 // ───── Constants ─────────────────────────────────────────────
 //
@@ -60,8 +63,52 @@ const HIGHLIGHT_SELECTOR = "span.dr-hl";
 // screens' evolution.
 function bubbleStrings(lang: Lang): BubbleStrings {
   return lang === "zh-CN"
-    ? { save: "保存", saved: "已保存", detail: "打开详情", close: "关闭", loading: "翻译中…", retry: "重试" }
-    : { save: "Save", saved: "Saved", detail: "View details", close: "Close", loading: "Translating…", retry: "Retry" };
+    ? {
+        save: "保存",
+        saved: "已保存",
+        detail: "打开详情",
+        close: "关闭",
+        loading: "翻译中…",
+        retry: "重试",
+        del: "删除",
+      }
+    : {
+        save: "Save",
+        saved: "Saved",
+        detail: "View details",
+        close: "Close",
+        loading: "Translating…",
+        retry: "Retry",
+        del: "Delete",
+      };
+}
+
+// Copy for the undo toast + its error state (v2.1 / D58).
+// Kept co-located with bubbleStrings for the same reason the bubble dict is
+// inline: the content bundle only needs 3 more keys per locale, and lifting
+// them to the side panel's DR_STRINGS would drag a 70-key dict into every
+// page.
+interface ToastStrings {
+  deletedBody: string;
+  undoAction: string;
+  errorBody: string;
+  errorClose: string;
+}
+
+function toastStrings(lang: Lang): ToastStrings {
+  return lang === "zh-CN"
+    ? {
+        deletedBody: "已删除",
+        undoAction: "撤销",
+        errorBody: "删除失败，请稍后再试。",
+        errorClose: "关闭",
+      }
+    : {
+        deletedBody: "Word deleted",
+        undoAction: "Undo",
+        errorBody: "Delete failed. Try again.",
+        errorClose: "Close",
+      };
 }
 
 function translateErrorMessage(code: string, lang: Lang): string {
@@ -139,6 +186,24 @@ function resolveWordAtPoint(x: number, y: number): ResolvedWord | null {
   const textNode = node as Text;
   const hit = wordAtOffset(textNode.data, caret.startOffset);
   if (!hit) return null;
+
+  // Bug-2026-04-24 guard: `caretRangeFromPoint` is a *nearest caret*
+  // API, not a hit-test. Clicks in a block's left padding / margin / a
+  // line-leading gap snap to `textNode[0]` — and `wordAtOffset(_, 0)`
+  // happily returns the first word on the line. That produced the
+  // "clicking blank space shows the first word" bug reported against
+  // v2.1.1. Verify the click actually landed inside the word's rendered
+  // glyph rect(s) before committing. Multi-rect handling covers the
+  // wrapped-word case where a single word spans a line break.
+  const wordRange = document.createRange();
+  wordRange.setStart(textNode, hit.start);
+  wordRange.setEnd(textNode, hit.end);
+  const rects = Array.from(wordRange.getClientRects());
+  // Empty rects → the range has no layout (display:none ancestor, etc.)
+  // — definitely not a legitimate click on rendered text, reject.
+  if (rects.length === 0) return null;
+  if (!isPointInAnyRect(rects, x, y)) return null;
+
   return { textNode, start: hit.start, end: hit.end, word: hit.text };
 }
 
@@ -176,10 +241,25 @@ function rectForWord(textNode: Text, start: number, end: number): BubbleAnchor {
 
 export interface ClickTranslatorDeps {
   bubble: BubbleHandle;
+  // v2.1: the undo toast lives one layer up (orchestrator owns it so the
+  // hover machine and click flow share the same instance). We receive it
+  // through deps rather than constructing our own — keeps teardown simple.
+  toast: UndoToastHandle;
   // Pulled via callback (not value) so the toggle reflects live settings
   // changes — the content script listens to storage.onChanged and the
   // click handler re-reads on every click.
   getSettings(): Settings;
+  // v2.1 / D61 row 10: when a bubble the click path opened is dismissed
+  // (ESC, click-outside, scroll, close button), notify the hover machine
+  // so it can exit CLICK_OWNED back to IDLE. Optional so tests can skip it.
+  onClickBubbleClose?: () => void;
+  // v2.1.1 / DL-5: opening the side panel must happen on a real user
+  // gesture (the `click` handler stack). content/index.ts owns the tabId
+  // cache, so it provides the concrete implementation here; we only
+  // invoke it from the detail-icon handler. Must return quickly — a
+  // non-awaited side effect; the gesture chain breaks if the call is
+  // resolved across a promise tick before `sidePanel.open` is invoked.
+  openSidePanelFromGesture?: () => void;
 }
 
 export interface ClickTranslatorHandle {
@@ -199,10 +279,74 @@ export interface ClickTranslatorHandle {
   // and text. This makes multi-word phrases surface the same in-page UI
   // as single-word clicks instead of silently routing to the side panel.
   showSelection(args: { text: string; anchor: BubbleAnchor; context: string }): void;
+  // v2.1 / D59: hover entry point. Paints the same saved-word bubble as
+  // `showSaved` but without setting `active` — click paths can still take
+  // over and repaint with full click semantics (mirror to side panel,
+  // etc). The hover state machine in content/index.ts drives this based
+  // on §6.3's transition table; it's not a standalone surface.
+  showHover(args: { anchor: BubbleAnchor; saved: VocabWord }): void;
 }
 
 export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslatorHandle {
-  const { bubble, getSettings } = deps;
+  const { bubble, toast, getSettings, onClickBubbleClose, openSidePanelFromGesture } = deps;
+
+  // ───── Delete + undo (v2.1 / D58) ────────────────────────────
+  //
+  // Shared by both `showSaved` (click on a highlighted word) and
+  // `showHover` (hover auto-preview over a highlighted word). Snapshot
+  // lives at this scope so deleting word A, then B, then undoing only
+  // restores B — matches §6.2's "replace, don't queue" semantics.
+  function deleteFromBubble(saved: VocabWord): void {
+    const lang = getSettings().ui_language;
+    const ts = toastStrings(lang);
+    // Snapshot BEFORE we dispatch DELETE_WORD so a nack still has the
+    // original record to surface in the error state (we don't re-read
+    // sync because the value may have been evicted mid-flight).
+    const snapshot: VocabWord = { ...saved };
+
+    // Close the bubble immediately — §6.2's handling model says "silent
+    // delete + undo toast", not "delete-in-place confirmation".
+    bubble.hide();
+
+    void (async () => {
+      try {
+        if (!chrome.runtime?.id) return;
+        const resp = await sendMessage({
+          type: "DELETE_WORD",
+          word_key: snapshot.word_key,
+        });
+        if (!resp.ok) {
+          // Nack: show a sticky error toast with a close button. We
+          // deliberately do not offer retry here — the user can re-open
+          // the bubble (if the highlight survives) and try again.
+          toast.showError(ts.errorBody, ts.errorClose);
+          return;
+        }
+        toast.show({
+          body: ts.deletedBody,
+          action: {
+            label: ts.undoAction,
+            onClick: () => {
+              // Undo = re-save with the original created_at / note.
+              // The write-buffer in background/vocab.ts cancels pending
+              // deletes when a save lands first, so this round-trip is
+              // idempotent even if the delete hasn't flushed yet.
+              void sendMessage({ type: "SAVE_WORD", word: snapshot }).catch(() => {
+                /* best-effort — if the re-save fails the word stays gone.
+                   Surfacing an error here would require stacking toasts
+                   which §6.2 rules out for this release. */
+              });
+            },
+          },
+          durationMs: 5000,
+        });
+      } catch {
+        /* Extension context likely invalidated between the liveness
+           check and the send — the orphan shutdown path in content/
+           index.ts will tear us down momentarily; no UI to update. */
+      }
+    })();
+  }
 
   // Drag tracking. Every mousedown resets the origin; the click handler
   // compares against it to decide drag-vs-click.
@@ -238,6 +382,9 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       strings,
       onClose: () => {
         if (active?.token === click.token) active = null;
+        // Click path: always notify hover machine so CLICK_OWNED exits
+        // when the user dismisses mid-loading.
+        onClickBubbleClose?.();
       },
     });
 
@@ -265,6 +412,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
         onRetry: () => void startFlow({ ...click, token: ++currentToken }),
         onClose: () => {
           if (active?.token === click.token) active = null;
+          onClickBubbleClose?.();
         },
       });
       return;
@@ -289,6 +437,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       onSave: saved ? undefined : () => void handleSave(click, translation),
       onClose: () => {
         if (active?.token === click.token) active = null;
+        onClickBubbleClose?.();
       },
     });
   }
@@ -348,6 +497,15 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     const resolved = resolveWordAtPoint(e.clientX, e.clientY);
     if (!resolved) return;
 
+    // v2.1.1 / DL-1: strip outer punctuation before anything downstream
+    // sees the word. The caret word-boundary resolver is already good at
+    // Latin word edges, but this second pass catches clicks near
+    // apostrophe / period boundaries where the browser's range sits on
+    // punctuation. If stripping yields an empty string the click was
+    // entirely on punctuation — treat it like a miss.
+    const cleanWord = stripOuterPunctuation(resolved.word);
+    if (!cleanWord) return;
+
     // Commit: prevent the host page from reacting to the click. This is
     // the first side effect in the pipeline — everything above is a
     // read-only inspection.
@@ -357,7 +515,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     const context = extractContextForNode(resolved.textNode);
     const click: CurrentClick = {
       token: ++currentToken,
-      word: resolved.word,
+      word: cleanWord,
       anchor: rectForWord(resolved.textNode, resolved.start, resolved.end),
       context,
       lang: getSettings().ui_language,
@@ -372,7 +530,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
         void chrome.runtime
           .sendMessage({
             type: "SELECTION_CHANGED",
-            text: resolved.word,
+            text: cleanWord,
             context_sentence: context,
             source_url: location.href,
           })
@@ -399,8 +557,18 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
   // already saved), adds the "打开详情" detail link. Reuses the same
   // monotonic token so a fresh click-to-translate can still race this
   // out — a later click wins regardless of which flow opened the bubble.
-  function showSaved(args: { anchor: BubbleAnchor; saved: VocabWord }): void {
-    const { anchor, saved } = args;
+  //
+  // v2.1 / D58: also wires the delete icon via `onDelete` → snapshot,
+  // fire DELETE_WORD, open undo toast. `owned=true` means this bubble
+  // counts as "click-owned" for the hover state machine; `showHover`
+  // below reuses the same rendering via `owned=false` so click can still
+  // take over. Keeping one function makes it impossible for the two
+  // variants to drift on delete/detail copy.
+  function paintSavedBubble(
+    anchor: BubbleAnchor,
+    saved: VocabWord,
+    owned: boolean
+  ): void {
     const lang = getSettings().ui_language;
     const strings = bubbleStrings(lang);
     const token = ++currentToken;
@@ -411,7 +579,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       context: saved.ctx ?? "",
       lang,
     };
-    active = click;
+    if (owned) active = click;
 
     bubble.show({
       anchor,
@@ -425,6 +593,12 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       },
       strings,
       onDetail: () => {
+        // v2.1.1 / DL-5: open the side panel *before* any async hop so
+        // Chrome still sees this call inside the click handler's
+        // user-gesture window. Order matters — awaiting sendMessage
+        // first (as v2.0 / v2.1.0 did) would drop the gesture and the
+        // open would silently no-op when the panel is closed.
+        openSidePanelFromGesture?.();
         try {
           if (!chrome.runtime?.id) return;
           void sendMessage({
@@ -435,12 +609,26 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
           /* context invalidated between check and send — swallow */
         }
         bubble.hide();
-        if (active?.token === token) active = null;
+        if (owned && active?.token === token) active = null;
+        if (owned) onClickBubbleClose?.();
       },
+      onDelete: () => deleteFromBubble(saved),
       onClose: () => {
-        if (active?.token === token) active = null;
+        if (owned && active?.token === token) active = null;
+        // Notify the hover state machine that a click-owned bubble went
+        // away so it can exit CLICK_OWNED. For hover-owned bubbles the
+        // hover machine handles its own dismiss tracking, so we skip.
+        if (owned) onClickBubbleClose?.();
       },
     });
+  }
+
+  function showSaved(args: { anchor: BubbleAnchor; saved: VocabWord }): void {
+    paintSavedBubble(args.anchor, args.saved, /* owned */ true);
+  }
+
+  function showHover(args: { anchor: BubbleAnchor; saved: VocabWord }): void {
+    paintSavedBubble(args.anchor, args.saved, /* owned */ false);
   }
 
   // Drag-selection bubble (post-Phase-H). Same translate + save-check
@@ -448,11 +636,18 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
   // instead of a click-derived word resolution. Allocates a new token so
   // it races against any in-flight click or prior selection on equal
   // footing — whichever fires last wins the bubble.
+  //
+  // v2.1.1 / DL-1: drag path strips outer punctuation here too —
+  // `content/index.ts` already does one snap-then-send, but we second-
+  // strip defensively so the bubble surface never sees a stray leading
+  // or trailing `,` / `.` / `"`.
   function showSelection(args: { text: string; anchor: BubbleAnchor; context: string }): void {
     const lang = getSettings().ui_language;
+    const cleanText = stripOuterPunctuation(args.text);
+    if (!cleanText) return;
     const click: CurrentClick = {
       token: ++currentToken,
-      word: args.text,
+      word: cleanText,
       anchor: args.anchor,
       context: args.context,
       lang,
@@ -468,5 +663,6 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     },
     showSaved,
     showSelection,
+    showHover,
   };
 }

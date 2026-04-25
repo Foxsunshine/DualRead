@@ -21,7 +21,13 @@
   --dr-red-border: rgba(181, 72, 58, 0.19);
 
   --dr-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
-  --dr-font-serif: "Instrument Serif", Georgia, serif;
+  /* v2.1 / D62: swapped Instrument Serif → Fraunces. The v2.0 face read as
+   * "too thin / too tall" for the density of a 360 px side panel; Fraunces
+   * has the same editorial flavor but ships an explicit SOFT axis we can
+   * nudge toward a slightly rounder shape. opsz/wght/SOFT are set per call
+   * site below via `font-variation-settings` — this var only names the
+   * family so the cascade still works if we later add fallbacks. */
+  --dr-font-serif: "Fraunces", Georgia, serif;
   --dr-font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
@@ -73,6 +79,11 @@ button { font-family: inherit; }
   align-items: center;
   justify-content: center;
   font-family: var(--dr-font-serif);
+  /* Fraunces tuning (D62). opsz 40 = display scale (logo glyph renders at
+   * 20 px in the large variant, Fraunces maps opsz to intended display size
+   * rather than pixel size). SOFT 50 rounds the terminals a touch without
+   * losing the serif bones. */
+  font-variation-settings: "opsz" 40, "SOFT" 50;
   font-weight: 700;
   letter-spacing: -0.5px;
   line-height: 1;
@@ -186,6 +197,9 @@ button { font-family: inherit; }
 }
 .dr-welcome__heading {
   font-family: var(--dr-font-serif);
+  /* opsz 24 ≈ rendered 32 px display heading; SOFT 50 matches the rest of the
+   * serif call sites to keep the family reading as one voice. */
+  font-variation-settings: "opsz" 24, "SOFT" 50;
   font-size: 32px;
   font-weight: 400;
   letter-spacing: -0.8px;
@@ -276,6 +290,8 @@ button { font-family: inherit; }
 }
 .dr-translate__word {
   font-family: var(--dr-font-serif);
+  /* opsz 22 = rendered size; SOFT 50 per D62. */
+  font-variation-settings: "opsz" 22, "SOFT" 50;
   font-size: 22px;
   font-weight: 400;
   line-height: 1.2;
@@ -511,6 +527,10 @@ button { font-family: inherit; }
 }
 .dr-vocab-row__word {
   font-family: var(--dr-font-serif);
+  /* Small display size — pick opsz 14 so Fraunces hardens terminals just
+   * enough for a vocab row to read crisply at list density. SOFT 50 matches
+   * the larger call sites for family consistency. */
+  font-variation-settings: "opsz" 14, "SOFT" 50;
   font-size: 16px;
   font-weight: 500;
   letter-spacing: -0.2px;
