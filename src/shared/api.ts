@@ -93,8 +93,12 @@ export interface TranslateResponseBody {
 
 // Anonymous POST /translate. Backend `/translate` does NOT require
 // a session JWT — it's IP-rate-limited rather than user-rate-limited.
-// We keep the call here in api.ts (alongside apiGet, ApiError) so all
-// backend HTTP routes share one client + one error type.
+//
+// **Dormant in Phase 1 W5.5+.** Click-translate is local-only per
+// docs/v3-product-design.md §2 (latency budget). This function is
+// preserved because Phase 2 W6's LangGraph agent uses it internally
+// as the baseline-translation node before RAG + style-polish nodes
+// run. No extension UI surface calls it directly today.
 //
 // source_lang is omitted from the request when null, which the
 // backend interprets as "auto-detect" (it omits source from the

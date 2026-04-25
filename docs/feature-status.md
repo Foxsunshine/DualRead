@@ -82,7 +82,11 @@
 
 ## 🚀 v3.x.x — 后端 + AI 工程层（10 周大工程）
 
-> Brainstorm: `docs/v3-1-architecture.md` + `docs/v3-1-ai-engineering-brainstorm.md`
+> 设计 source-of-truth：
+> - `docs/v3-product-design.md` —— 当下到 Phase 5 的产品形态
+>   （双通路翻译 + AI 精翻 UX + 配额政策）
+> - `docs/v3-1-architecture.md` —— 23 个 ADR（架构骨架）
+> - `docs/v3-1-ai-engineering-brainstorm.md` —— AI 工程层早期决策推导
 >
 > 简历叙事核心。从 0 建：
 
@@ -98,11 +102,19 @@
 - ✅ Chrome extension `chrome.identity.getAuthToken` 流程 + Settings Account UI（W4#2）
 - ✅ 端到端本地登录 runbook（W4#3，`DualRead-backend/docs/runbooks/dev-login.md`）
 
-**W5（待办）：**
+**W5 完成情况（2026-04-25）：**
 
-- Railway 部署 + 把 manifest host_permissions 切到 prod URL
-- 把翻译路径切到 backend（user 已登录走 backend，未登录走原本地 Google MT）
-- 生词云端同步（双写 storage.sync + 后端 /vocab/bulk-upsert）
+- ✅ Backend 部署到 Railway（W5#1 deploy artifacts，W5#2 dashboard 操作）
+- ✅ Manifest 改造：OAuth client_id + 后端 URL 改成 `.env`-driven 构建注入（W5#3，公开仓库不暴露）
+- ✅ 生词云同步（best-effort 写穿到 `/vocab/bulk-upsert` + per-key DELETE，本地 sync 仍是 source of truth）（W5#4）
+- ✅ Backend translate 加 auto-detect 支持（source_lang 可选）（W5#5a，dormant）
+- 🔄 **W5#5b reverted（W5.5 修订）**：原计划"已登录走 backend translate" 因延迟过高（Railway 冷启动 + 多跳网络）回滚。改为：划词永远本地 Google MT，backend `/translate` dormant，Phase 2 W6 起以**显式 AI 精翻**按钮形式重新启用。
+  详见 `docs/v3-product-design.md`。
+
+**W5 余项（轻量，未阻塞）：**
+
+- Railway 冷启动缓解：UptimeRobot 免费 ping `/healthz`（用户操作）
+- Sign-in 时 GET /vocab + 本地 merge（"pull-merge"，跨设备 vocab 收拢）— 推迟到 Phase 5
 
 ### v3.1 AI 工程层（Phase 2-5，W4-W12）
 
