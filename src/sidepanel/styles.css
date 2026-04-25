@@ -711,6 +711,15 @@ button { font-family: inherit; }
   color: var(--dr-ink-soft);
   margin-bottom: 8px;
 }
+/* v2.3 D5: explanatory caption rendered below a settings control to
+ * spell out a non-obvious second-order effect (e.g. ui_language also
+ * drives translation direction). Same color / size as row-subtitle so
+ * the visual hierarchy stays consistent. */
+.dr-settings__caption {
+  font-size: 12px;
+  color: var(--dr-ink-muted);
+  margin-top: 6px;
+}
 .dr-settings__style-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

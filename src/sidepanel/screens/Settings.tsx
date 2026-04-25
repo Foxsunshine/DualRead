@@ -79,6 +79,15 @@ export function Settings({
             </option>
           ))}
         </select>
+        {/*
+          v2.3 D5: explicit caption tying ui_language to translation
+          direction. Without this, the second-order effect (picking the
+          UI language also picks the translation target) is implicit
+          and surprises new users.
+        */}
+        <div className="dr-settings__caption">
+          {S.translateDirectionCaption(settings.ui_language)}
+        </div>
       </div>
 
       <div className="dr-settings__group">

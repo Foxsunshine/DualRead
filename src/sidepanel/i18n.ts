@@ -1,4 +1,12 @@
 import type { Lang } from "../shared/types";
+import { LANG_OPTIONS } from "../shared/types";
+
+// Native-form label lookup, used by the translation-direction caption
+// strings below. Centralizing here means a 5th language addition only
+// touches LANG_OPTIONS.
+function nativeLabel(lang: Lang): string {
+  return LANG_OPTIONS.find((l) => l.id === lang)?.nativeLabel ?? lang;
+}
 
 interface Strings {
   appName: string;
@@ -57,6 +65,12 @@ interface Strings {
   highlightUnderline: string;
   highlightBackground: string;
   uiLanguage: string;
+  // v2.3 D5: small caption below the ui_language dropdown clarifying
+  // the second-order effect — picking a UI language also picks the
+  // translation target. Function-typed because the rendered text
+  // includes the chosen language's native-form name (中文 / English /
+  // 日本語 / Français).
+  translateDirectionCaption: (lang: Lang) => string;
   syncStatus: string;
   synced: string;
   syncing: string;
@@ -139,6 +153,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "下划线",
     highlightBackground: "背景色",
     uiLanguage: "界面语言",
+    translateDirectionCaption: (lang) =>
+      `翻译方向：自动检测 → ${nativeLabel(lang)}`,
     syncStatus: "同步状态",
     synced: "已同步",
     syncing: "正在同步…",
@@ -211,6 +227,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "Underline",
     highlightBackground: "Background",
     uiLanguage: "Interface language",
+    translateDirectionCaption: (lang) =>
+      `Direction: auto-detect → ${nativeLabel(lang)}`,
     syncStatus: "Sync status",
     synced: "Synced",
     syncing: "Syncing…",
@@ -288,6 +306,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "下線",
     highlightBackground: "背景",
     uiLanguage: "表示言語",
+    translateDirectionCaption: (lang) =>
+      `翻訳方向：自動検出 → ${nativeLabel(lang)}`,
     syncStatus: "同期ステータス",
     synced: "同期済み",
     syncing: "同期中…",
@@ -367,6 +387,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     highlightUnderline: "Souligné",
     highlightBackground: "Arrière-plan",
     uiLanguage: "Langue de l'interface",
+    translateDirectionCaption: (lang) =>
+      `Direction : détection auto → ${nativeLabel(lang)}`,
     syncStatus: "État de synchronisation",
     synced: "Synchronisé",
     syncing: "Synchronisation…",
