@@ -16,7 +16,7 @@
 </head>
 <body>
   <h1>DualRead — Privacy Policy</h1>
-  <p class="updated">Last updated: April 22, 2026 (v2.0)</p>
+  <p class="updated">Last updated: April 26, 2026 (v2.0.1)</p>
 
   <h2>Overview</h2>
   <p>DualRead ("the Extension") is a Chrome browser extension for Chinese speakers learning English. It lets you look up and save unknown English words while browsing, shows a translation bubble next to the word you click or select, and gently highlights your saved words on pages you visit afterwards. This policy explains what data the Extension handles and where it goes.</p>
@@ -41,7 +41,6 @@
   <ul>
     <li><strong>storage</strong> — save your vocabulary, settings, and write buffer locally.</li>
     <li><strong>sidePanel</strong> — show the DualRead panel on the right side of the browser.</li>
-    <li><strong>contextMenus</strong> — reserved for right-click integrations in future versions; unused in v1.</li>
     <li><strong>downloads</strong> — save your vocabulary list as a CSV file when you export.</li>
     <li><strong>Host permission for <code>translate.googleapis.com</code></strong> — contact Google Translate to translate the text you select.</li>
     <li><strong>Content scripts on all URLs</strong> — required to (a) detect the word you click or select, (b) render the in-page translation bubble next to that word, (c) underline your saved words on the pages you visit, and (d) render the floating learning-mode on/off button in the bottom-right of the page. The content script never reads page text other than: the text you explicitly click or select, the immediate surrounding sentence (for context in the panel), and text nodes it walks while wrapping your saved words in highlight spans. Nothing from your browsing is transmitted anywhere except what is described in "What leaves your browser" above.</li>

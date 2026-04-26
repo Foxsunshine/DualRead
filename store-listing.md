@@ -129,7 +129,6 @@ https://foxsunshine.github.io/DualRead/privacy-policy.html
 
 - `storage` — save vocabulary + settings locally, and sync vocab via Chrome Sync across the user's own devices.
 - `sidePanel` — render the extension UI in the Chrome side panel.
-- `contextMenus` — reserved for future right-click actions (declared now to avoid a manifest bump later).
 - `downloads` — save vocabulary list as a CSV file when the user clicks Export.
 - `host_permissions: https://translate.googleapis.com/*` — contact Google Translate to translate the text the user actively selects.
 - `content_scripts: <all_urls>` — required so the extension can (a) detect click/drag selection on any page, (b) underline saved words on any page the user visits, and (c) render the floating learning-mode toggle. The content script only transmits text the user explicitly selects; highlight wrapping and the floating button are rendered entirely in the local DOM via closed Shadow DOM.
@@ -152,14 +151,13 @@ Help Chinese-speaking English learners look up, save, and review unknown English
 |---|---|
 | `storage` | Store the user's saved vocabulary, UI settings, and a small pending-write buffer. Vocabulary is stored in `chrome.storage.sync` so it follows the user across their own Chrome devices via Chrome Sync. |
 | `sidePanel` | Render the DualRead vocabulary UI in Chrome's native side panel (translation results, vocab list, settings). |
-| `contextMenus` | Declared to support a future right-click "Save word" action. Not actively exposed to users in v2.0 but declared now to avoid a later permissions re-review. |
 | `downloads` | Save the user's vocabulary list to a CSV file on their disk when they click the Export button in the side panel. |
 | Host permission `https://translate.googleapis.com/*` | Send the text the user actively clicks or selects to Google Translate in order to obtain the Chinese translation shown in the in-page bubble and side panel. This is the only external service the extension contacts. |
 | `<all_urls>` host access (content scripts) | The extension works on any webpage the user is reading. The content script detects the word the user clicks or drag-selects, renders the translation bubble and the floating on/off button in an isolated closed Shadow DOM, and underlines words the user has previously saved. It does not read or transmit page content other than the text the user explicitly selects and its immediate surrounding sentence. |
 
 ### 3. Data usage disclosures
 
-For the "Does your extension collect or use…" checkboxes, leave **all** unchecked:
+For the "Does your extension collect or use…" checkboxes:
 
 - Personally identifiable information — No
 - Health information — No
@@ -169,9 +167,9 @@ For the "Does your extension collect or use…" checkboxes, leave **all** unchec
 - Location — No
 - Web history — No
 - User activity — No
-- Website content — No
+- **Website content — Yes** (the only category to check)
 
-> Note on "Website content": the text a user selects technically is website content, but Google's definition here is whether the developer **collects** that content (uploads it to their own backend or analytics). DualRead has no backend — selected text is sent only to Google Translate's public API, which is disclosed under the host permission. Leaving this unchecked is correct.
+> Why "Website content" is checked: the user-selected text the extension transmits to Google Translate falls under Google's CWS definition of "website content" (text visible on a webpage that the extension handles or transmits). Even though DualRead has no developer-operated backend, Google's reviewer convention treats third-party API transmission as in-scope disclosure. Leaving this unchecked while declaring `<all_urls>` content scripts and a translate.googleapis.com host permission has triggered rejections in 2024–2026 reviews. Check the box; the three certifications below (no sale, no unrelated use, no creditworthiness) accurately describe the rest.
 
 ### 4. Certifications — check all three
 
