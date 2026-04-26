@@ -1569,6 +1569,23 @@ Admin dashboard 直接渲染这些 query。
 
 按 D-AI14 排序（X：AI 先 / Web 最后）。每 phase 末有可演示 demo。
 
+> **进度快照（2026-04-26）**：
+> - ✅ Phase 0 done（2026-04-25，3 repo + secret 4 层防御）
+> - ✅ Phase 1 W1-W4 done（FastAPI 骨架 + auth + translate + vocab）
+> - ✅ Phase 2 W5.5 双通道 translate 修订（DualRead repo `05c2060`）
+> - ✅ Phase 2 W6 LangGraph 3 节点 agent done
+> - ✅ Phase 2 W7 pgvector RAG + Wikidata ingest done
+> - ✅ Phase 2 W8 cross-encoder rerank done
+> - ✅ Phase 2 W9-W10 eval pipeline 基建 done（DualRead-backend
+>   `c3e6476` + `a1d4a47` runbook）
+> - ⏸️ Phase 2 W10-C4 **待用户亲跑**（真烧 $8 GH workflow_dispatch；
+>   流程在 `DualRead-backend/docs/runbooks/w10-eval-run.md`）
+> - 🔜 Phase 4 Langfuse metadata 收尾 + README 简历叙事 + privacy
+>   policy 4 语 = 简历可投 milestone
+> - 🔜 Phase 5 Next.js Web（`DualRead-web` repo 仍在 placeholder）
+>
+> **用户 2026-04-26 起暂停 ~1 周休整**，回归后从 W10-C4 真跑接续。
+
 ### Phase 0 — Repo 拆分 + Secret 防御就位（Week 1 早，半天）
 
 ADR-A20 + A21 强制：第一次 push 前必须完成。
