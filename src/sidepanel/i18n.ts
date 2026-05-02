@@ -286,6 +286,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     feedbackTitle: "フィードバック / バグ報告",
     learningModePausedTitle: "学習モードは一時停止中",
     learningModePausedBody: "クリック翻訳、選択翻訳、ページ上のハイライトはすべてオフです。ページ右下のフローティングボタンをクリックすると再開できます。",
+    fabDisabledOriginsTitle: "フローティングボタンを非表示",
+    fabDisabledOriginsHint: "以下のサイトではフローティングボタンを表示しません（選択翻訳とハイライトは引き続き動作します）",
+    originPlaceholder: "https://example.com",
+    addOrigin: "追加",
+    removeOrigin: "削除",
+    originInvalid: "完全な URL を入力してください（例：https://example.com）",
+    fabDisabledOriginsEmpty: "非表示のサイトはありません",
   },
   fr: {
     appName: "DualRead",
@@ -350,6 +357,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     feedbackTitle: "Retour / Signaler un bug",
     learningModePausedTitle: "Mode apprentissage en pause",
     learningModePausedBody: "La traduction au clic, la traduction par sélection et les surlignages sur la page sont désactivés. Cliquez sur le bouton flottant en bas à droite de n'importe quelle page pour les réactiver.",
+    fabDisabledOriginsTitle: "Masquer le bouton flottant",
+    fabDisabledOriginsHint: "Ne pas afficher le bouton flottant sur ces sites (la traduction par sélection et les surlignages restent actifs).",
+    originPlaceholder: "https://example.com",
+    addOrigin: "Ajouter",
+    removeOrigin: "Supprimer",
+    originInvalid: "Saisissez une URL complète, par exemple https://example.com",
+    fabDisabledOriginsEmpty: "Aucun site ajouté.",
   },
 };
 

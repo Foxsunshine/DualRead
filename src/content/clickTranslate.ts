@@ -517,7 +517,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       state: {
         kind: "hoverPreview",
         word: click.word,
-        translation: saved.zh || "—",
+        translation: saved.translation || "—",
         note: saved.note,
       },
       strings,

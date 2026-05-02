@@ -59,12 +59,13 @@ function makeWord(overrides: Partial<VocabWord> = {}): VocabWord {
   return {
     word: "serendipity",
     word_key: "serendipity",
-    zh: "意外发现",
+    translation: "意外发现",
     note: "from a friend",
     ctx: "a moment of pure serendipity",
     source_url: "https://example.com",
     created_at: now,
     updated_at: now,
+    schema_version: 2,
     ...overrides,
   };
 }
