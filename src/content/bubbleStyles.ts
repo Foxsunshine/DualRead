@@ -166,6 +166,32 @@ export function bubbleCSS(): string {
   outline-offset: 1px;
 }
 
+/* Delete button mirrors the detail-button shape so the saved bubble's
+   action row has a balanced "two icons + Saved chip" layout. Hover
+   uses the destructive red token instead of accent, matching the
+   side-panel delete affordance pattern. */
+.dr-bubble__delete {
+  all: unset;
+  cursor: pointer;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 6px;
+  color: ${DR_TOKENS.inkMuted};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+.dr-bubble__delete:hover {
+  background: ${DR_TOKENS.borderSoft};
+  color: ${DR_TOKENS.red};
+}
+.dr-bubble__delete:focus-visible {
+  outline: 2px solid ${DR_TOKENS.red};
+  outline-offset: 1px;
+}
+
 .dr-bubble__loading {
   display: inline-flex;
   align-items: center;
