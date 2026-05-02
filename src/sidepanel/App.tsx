@@ -58,7 +58,10 @@ export function App() {
   const { settings, loaded, update } = useSettings();
   const [screen, setScreen] = useState<Screen | null>(null);
   const vocab = useVocab();
-  const selection = useSelection(settings.ui_language === "en" ? "en" : "zh-CN");
+  const selection = useSelection(
+    settings.translation_direction.target,
+    settings.translation_direction.source
+  );
   const focus = useFocusWord();
   const syncStatus = useSyncStatus();
 
@@ -128,6 +131,8 @@ export function App() {
       word: selection.data.word,
       word_key: currentKey,
       translation: selection.data.translation,
+      source_lang: existing?.source_lang ?? settings.translation_direction.source,
+      target_lang: existing?.target_lang ?? settings.translation_direction.target,
       ctx: selection.data.contextSentence,
       source_url: selection.data.sourceUrl,
       note: existing?.note,

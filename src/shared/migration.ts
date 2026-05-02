@@ -8,7 +8,7 @@
 // builds during a failed network save would otherwise be resurrected with a
 // fabricated default, silently inventing user data.
 
-import { CURRENT_SCHEMA_VERSION } from "./types";
+import { CURRENT_SCHEMA_VERSION, isValidLang } from "./types";
 import type { Lang, Settings, VocabWord } from "./types";
 
 export type MigrationSettings = Pick<Settings, "ui_language">;
@@ -38,7 +38,7 @@ function isNumber(v: unknown): v is number {
 }
 
 function asLang(v: unknown): Lang | undefined {
-  return v === "zh-CN" || v === "en" ? v : undefined;
+  return isValidLang(v) ? v : undefined;
 }
 
 export function migrateRecord(

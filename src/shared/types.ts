@@ -6,6 +6,11 @@ export function isValidLang(x: unknown): x is Lang {
   return x === "zh-CN" || x === "en" || x === "ja" || x === "fr";
 }
 
+export interface TranslationDirection {
+  source: Lang;
+  target: Lang;
+}
+
 export interface Settings {
   auto_highlight_enabled: boolean;
   highlight_style: HighlightStyle;
@@ -23,6 +28,16 @@ export interface Settings {
   // in canonical `protocol//host` form (no path, no trailing slash) so
   // membership is a plain string compare against `location.origin`.
   fab_disabled_origins: string[];
+  // Translation direction (selection translation source → target). Default
+  // target follows ui_language until the user manually picks a direction
+  // — see direction_user_overridden.
+  translation_direction: TranslationDirection;
+  // Latch flipped to true the first time the user edits translation_direction
+  // from the Settings UI. While false, ui_language changes propagate into
+  // translation_direction.target so a fresh user landing in their native
+  // tongue gets a sensible default automatically. Once true, ui_language
+  // changes no longer touch the direction. Reset only by Clear All Data.
+  direction_user_overridden: boolean;
 }
 
 // Canonical default settings. Consumed by:
@@ -38,6 +53,8 @@ export const DEFAULT_SETTINGS: Settings = {
   first_run_completed: false,
   learning_mode_enabled: true,
   fab_disabled_origins: [],
+  translation_direction: { source: "en", target: "zh-CN" },
+  direction_user_overridden: false,
 };
 
 // Bumped to 2 in the schema-migration track: replaces the v1 `zh` / `en?`

@@ -237,12 +237,14 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
 
     // Translate and saved-check in parallel — both involve I/O, neither
     // depends on the other, and the bubble reveals the combined result.
+    const direction = getSettings().translation_direction;
     const [saved, resp] = await Promise.all([
       readSavedWord(word_key),
       sendMessage({
         type: "TRANSLATE_REQUEST",
         text: click.word,
-        target: "zh-CN",
+        target: direction.target,
+        source: direction.source,
         requester: "bubble",
       }),
     ]);
@@ -312,10 +314,13 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
   async function handleSave(click: CurrentClick, translation: string): Promise<void> {
     const now = Date.now();
     const word_key = click.word.trim().toLowerCase();
+    const direction = getSettings().translation_direction;
     const vw: VocabWord = {
       word: click.word,
       word_key,
       translation,
+      source_lang: direction.source,
+      target_lang: direction.target,
       ctx: click.context || undefined,
       source_url: location.href,
       created_at: now,

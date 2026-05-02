@@ -692,6 +692,61 @@ button { font-family: inherit; }
   font-weight: 600;
 }
 
+/* Translation direction picker — two dropdowns plus an arrow on a single
+ * row, with a caption underneath that switches between the formatted
+ * "from X to Y" sentence and the same-lang nudge. Native <select> sizing is
+ * used so each platform's dropdown affordances stay familiar. */
+.dr-direction {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dr-direction__row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 8px;
+}
+.dr-direction__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dr-direction__field-label {
+  font-size: 11px;
+  color: var(--dr-ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dr-direction__select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--dr-ink);
+  background: var(--dr-bg-raised);
+  border: 1px solid var(--dr-border);
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+}
+.dr-direction__select:focus {
+  outline: 2px solid var(--dr-accent);
+  outline-offset: 1px;
+}
+.dr-direction__arrow {
+  font-size: 14px;
+  color: var(--dr-ink-muted);
+  padding-bottom: 8px;
+}
+.dr-direction__caption {
+  font-size: 11px;
+  color: var(--dr-ink-muted);
+  line-height: 1.5;
+}
+
 .dr-sync {
   padding: 10px 12px;
   background: var(--dr-bg-raised);
