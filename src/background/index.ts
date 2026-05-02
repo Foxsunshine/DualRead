@@ -18,17 +18,37 @@ import {
   SESSION_KEY_PENDING_FOCUS,
 } from "../shared/messages";
 import { DEFAULT_SETTINGS } from "../shared/types";
-import type { SelectionPayload, VocabWord } from "../shared/types";
+import type { Lang, SelectionPayload, Settings, VocabWord } from "../shared/types";
 import { clearVocab, deleteWord, flushPending, getVocab, saveWord } from "./vocab";
 import { handleTranslate } from "./translate";
 import { runMigration } from "./migrate";
+
+// Map a BCP-47 tag like "ja-JP" / "fr-CA" to one of the four supported UI
+// languages. Used on first install to pick a sensible default; falls back
+// to English when nothing matches so users on unsupported locales see the
+// reference language rather than a Chinese default.
+function detectInstallLang(tag: string | undefined): Lang {
+  const primary = (tag ?? "").toLowerCase().split("-")[0];
+  if (primary === "ja") return "ja";
+  if (primary === "fr") return "fr";
+  if (primary === "zh") return "zh-CN";
+  if (primary === "en") return "en";
+  return "en";
+}
 
 chrome.runtime.onInstalled.addListener(async () => {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
   const { settings } = await chrome.storage.local.get("settings");
   if (!settings) {
-    await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });
+    // Fresh install path: seed defaults and pick the UI language from the
+    // browser locale so first-run users land on a panel that already speaks
+    // their language. Updates and re-runs leave the existing record alone.
+    const seeded: Settings = {
+      ...DEFAULT_SETTINGS,
+      ui_language: detectInstallLang(navigator.language),
+    };
+    await chrome.storage.local.set({ settings: seeded });
   }
 });
 

@@ -1,5 +1,17 @@
 /* DualRead — side panel styles. Mirrors /tmp/dualread-design/dualread/project/SidePanel.jsx */
 
+/* Self-hosted Japanese typeface. CSP forbids fonts.gstatic.com, so the
+ * Japanese subset ships with the extension and is served from the bundled
+ * /fonts/ directory. font-display:swap keeps Latin text instant; the JP
+ * face only blocks rendering for [lang="ja"] glyphs once it loads. */
+@font-face {
+  font-family: "Noto Sans JP";
+  src: url("/fonts/NotoSansJP-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --dr-bg: #FBF7F1;
   --dr-bg-raised: #FFFFFF;
@@ -36,6 +48,16 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Apply the self-hosted JP face only when the panel is rendered in
+ * Japanese. Listed before the default sans stack so kana/kanji prefer
+ * Noto Sans JP; Latin glyphs fall through to the system stack. */
+.dr-root[lang="ja"],
+.dr-root[lang="ja"] button,
+.dr-root[lang="ja"] input,
+.dr-root[lang="ja"] textarea {
+  font-family: "Noto Sans JP", var(--dr-font-sans);
 }
 
 button { font-family: inherit; }
@@ -199,38 +221,6 @@ button { font-family: inherit; }
   color: var(--dr-ink-soft);
   margin-bottom: 24px;
   text-wrap: pretty;
-}
-.dr-welcome__level-group { margin-bottom: 20px; }
-.dr-welcome__level-prompt {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dr-ink-soft);
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-.dr-welcome__levels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-.dr-level {
-  padding: 10px 12px;
-  border: 1px solid var(--dr-border);
-  background: var(--dr-bg-raised);
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dr-ink);
-  cursor: pointer;
-  text-align: center;
-  font-family: inherit;
-}
-.dr-level--active {
-  border-color: var(--dr-accent);
-  background: var(--dr-accent-soft);
-  font-weight: 600;
-  color: var(--dr-accent-ink);
 }
 .dr-welcome__spacer { flex: 1; }
 
@@ -655,6 +645,12 @@ button { font-family: inherit; }
   border-radius: 8px;
   overflow: hidden;
   background: var(--dr-bg-raised);
+}
+/* 4-language variant: pill row spans the panel width on a single row. The
+ * narrowest panel width (~360px) still fits 4 short labels at 12px without
+ * truncating, so we don't wrap. */
+.dr-lang-toggle--quad {
+  grid-template-columns: repeat(4, 1fr);
 }
 .dr-lang-toggle__btn {
   padding: 10px;

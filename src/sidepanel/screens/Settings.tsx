@@ -55,9 +55,11 @@ export function Settings({
 
       <div className="dr-settings__group">
         <div className="dr-settings__group-title">{S.uiLanguage}</div>
-        <div className="dr-lang-toggle">
+        <div className="dr-lang-toggle dr-lang-toggle--quad">
           <LangBtn label={S.zh} active={settings.ui_language === "zh-CN"} onClick={() => onChange({ ui_language: "zh-CN" })} />
           <LangBtn label={S.en} active={settings.ui_language === "en"} onClick={() => onChange({ ui_language: "en" })} />
+          <LangBtn label={S.ja} active={settings.ui_language === "ja"} onClick={() => onChange({ ui_language: "ja" })} />
+          <LangBtn label={S.fr} active={settings.ui_language === "fr"} onClick={() => onChange({ ui_language: "fr" })} />
         </div>
       </div>
 

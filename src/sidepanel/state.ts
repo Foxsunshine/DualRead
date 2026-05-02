@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_SETTINGS } from "../shared/types";
+import { DEFAULT_SETTINGS, isValidLang } from "../shared/types";
 import type { Settings } from "../shared/types";
 
 // Storage key for the Settings blob in chrome.storage.local. Kept here (not
@@ -8,19 +8,47 @@ import type { Settings } from "../shared/types";
 // imports and to keep the hook's read/write pair colocated.
 const LOCAL_KEY_SETTINGS = "settings";
 
+// Drop fields that have been removed from the schema before merging with
+// DEFAULT_SETTINGS. Ensures stale records (e.g. `level` from earlier
+// versions) get garbage-collected on the next write rather than lingering.
+function sanitizeRaw(raw: Partial<Settings> & Record<string, unknown> | undefined): Partial<Settings> {
+  if (!raw) return {};
+  const { level: _level, ...rest } = raw as Record<string, unknown>;
+  void _level;
+  const out: Partial<Settings> = { ...(rest as Partial<Settings>) };
+  // ui_language might be an unknown string from a future/foreign version —
+  // fall back to the canonical default rather than letting the UI render
+  // against an undefined dictionary.
+  if ("ui_language" in out && !isValidLang(out.ui_language)) {
+    delete out.ui_language;
+  }
+  return out;
+}
+
+function settingsEqual(a: Settings, b: Settings): boolean {
+  return (
+    a.auto_highlight_enabled === b.auto_highlight_enabled &&
+    a.highlight_style === b.highlight_style &&
+    a.ui_language === b.ui_language &&
+    a.first_run_completed === b.first_run_completed &&
+    a.learning_mode_enabled === b.learning_mode_enabled
+  );
+}
+
 export function useSettings() {
   const [settings, setLocal] = useState<Settings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
-  // Hydrate once. We merge with DEFAULT_SETTINGS so a stale storage record
-  // missing a newer field (e.g. `level` added in Phase 2) still boots cleanly
-  // instead of surfacing `undefined` in the UI.
+  // Hydrate once. We sanitize first (strip dropped fields like `level`,
+  // guard `ui_language` against unknown values) then merge with defaults
+  // so missing newer fields still boot cleanly.
   useEffect(() => {
     let cancelled = false;
     chrome.storage.local.get(LOCAL_KEY_SETTINGS).then((res) => {
       if (cancelled) return;
-      const raw = res[LOCAL_KEY_SETTINGS] as Partial<Settings> | undefined;
-      setLocal({ ...DEFAULT_SETTINGS, ...(raw ?? {}) });
+      const raw = res[LOCAL_KEY_SETTINGS] as (Partial<Settings> & Record<string, unknown>) | undefined;
+      const cleaned = sanitizeRaw(raw);
+      setLocal({ ...DEFAULT_SETTINGS, ...cleaned });
       setLoaded(true);
     });
     return () => {
@@ -29,11 +57,14 @@ export function useSettings() {
   }, []);
 
   // Optimistic update: flip React state first so the UI is instant, then
-  // fire-and-forget the storage write. We don't await — the content script
-  // and any other panel instance pick up the change via storage.onChanged.
+  // fire-and-forget the storage write. Skip the write entirely when the
+  // patched value is identical to the previous one — repeated toggles on
+  // the same option (e.g. tapping the active language pill) would otherwise
+  // dispatch redundant storage.onChanged events to every listener.
   const update = useCallback((patch: Partial<Settings>) => {
     setLocal((prev) => {
       const next = { ...prev, ...patch };
+      if (settingsEqual(prev, next)) return prev;
       void chrome.storage.local.set({ [LOCAL_KEY_SETTINGS]: next });
       return next;
     });
