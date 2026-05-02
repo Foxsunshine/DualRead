@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "DualRead — Traducteur et surligneur de vocabulaire",
+    "description": "Nom de l'extension affiché sur le Chrome Web Store et dans les menus de Chrome."
+  },
+  "extDescription": {
+    "message": "Sélectionnez pour traduire, enregistrez et surlignez vos mots automatiquement sur chaque page. Export CSV. Sans compte ni serveur.",
+    "description": "Description courte de l'extension (132 caractères max) affichée sur le Web Store."
+  }
+}
