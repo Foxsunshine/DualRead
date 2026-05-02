@@ -1,15 +1,16 @@
-export type Lang = "zh-CN" | "en";
+export type Lang = "zh-CN" | "en" | "ja" | "fr";
 
 export type HighlightStyle = "underline" | "background";
 
-export type Level = "A2" | "B1" | "B2" | "C1";
+export function isValidLang(x: unknown): x is Lang {
+  return x === "zh-CN" || x === "en" || x === "ja" || x === "fr";
+}
 
 export interface Settings {
   auto_highlight_enabled: boolean;
   highlight_style: HighlightStyle;
   ui_language: Lang;
   first_run_completed: boolean;
-  level: Level;
   // v1.1 post-H master switch (D52). When false, DualRead is fully dormant
   // on the page: no selection relay, no click/drag bubble, no `.dr-hl`
   // highlights rendered. Side panel remains functional (shows a paused
@@ -29,7 +30,6 @@ export const DEFAULT_SETTINGS: Settings = {
   highlight_style: "underline",
   ui_language: "zh-CN",
   first_run_completed: false,
-  level: "B1",
   learning_mode_enabled: true,
 };
 

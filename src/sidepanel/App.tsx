@@ -161,8 +161,6 @@ export function App() {
         return (
           <Welcome
             S={S}
-            level={settings.level}
-            onLevelChange={(level) => update({ level })}
             onStart={() => {
               update({ first_run_completed: true });
               setScreen("translate-empty");
