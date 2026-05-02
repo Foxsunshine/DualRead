@@ -186,11 +186,13 @@ chrome.runtime.onMessage.addListener(
       case "TRANSLATE_REQUEST":
         // Caller-supplied target wins; otherwise pull the persisted direction
         // so the bubble and side panel always agree with Settings even when
-        // a stale caller forgot to forward it.
+        // a stale caller forgot to forward it. `force` is forwarded
+        // verbatim — undefined means "honour alreadyInLang detection".
         (async () => {
           const target = msg.target ?? (await readDirection()).target;
           const source = msg.source ?? "auto";
-          const resp = await handleTranslate(msg.text, target, source);
+          const force = msg.force === true;
+          const resp = await handleTranslate(msg.text, target, source, force);
           sendResponse(resp);
         })();
         return true;

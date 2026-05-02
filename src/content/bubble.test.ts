@@ -43,6 +43,8 @@ const STRINGS: BubbleStrings = {
   close: "Close",
   loading: "Loading…",
   retry: "Retry",
+  translateAnyway: "Translate anyway",
+  alreadyInLangBody: (name) => `This is already in ${name}.`,
 };
 
 const ANCHOR: BubbleAnchor = {
@@ -71,16 +73,28 @@ function makeWord(overrides: Partial<VocabWord> = {}): VocabWord {
 }
 
 // chrome.* mock — minimal stub used by clickTranslate.ts. We only
-// exercise paths that read storage and send DELETE_WORD / SAVE_WORD;
-// the more elaborate translate path is covered by other tests.
-function installChromeStub(savedRecord: VocabWord | null) {
+// exercise paths that read storage and send DELETE_WORD / SAVE_WORD /
+// TRANSLATE_REQUEST; the translate-result body can be customised by the
+// caller so tests of the alreadyInLang flow can drive the bubble through
+// notice → force → translated transitions deterministically.
+type TranslateResultFn = (msg: { force?: boolean }) => unknown;
+interface ChromeStubOptions {
+  savedRecord?: VocabWord | null;
+  translateResult?: TranslateResultFn;
+}
+function installChromeStub(opts: ChromeStubOptions = {}) {
+  const { savedRecord = null, translateResult } = opts;
   const sentMessages: unknown[] = [];
   const stub = {
     runtime: {
       id: "test-extension-id",
       sendMessage: vi.fn((msg: unknown, cb?: (resp: unknown) => void) => {
         sentMessages.push(msg);
-        const resp = { ok: true };
+        let resp: unknown = { ok: true };
+        const m = msg as { type?: string; force?: boolean };
+        if (m.type === "TRANSLATE_REQUEST" && translateResult) {
+          resp = translateResult(m);
+        }
         if (typeof cb === "function") cb(resp);
         return Promise.resolve(resp);
       }),
@@ -114,12 +128,24 @@ function bubbleShadow(): ShadowRoot | null {
   return host?.shadowRoot ?? null;
 }
 
+// Yields the event loop long enough for the click translator's startFlow
+// chain (Promise.all over readSavedWord + sendMessage, then renderTranslated /
+// renderAlreadyInLang) to settle. Two microtask ticks aren't always enough
+// because Promise.all itself adds a tick; a setTimeout(0) reliably runs
+// after the queued microtasks regardless of the chain's depth.
+function flushMicrotasks(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function bubbleSnapshot(): {
   hasTranslated: boolean;
   hasDeleteBtn: boolean;
   hasDetailBtn: boolean;
   hasSaveBtn: boolean;
   hasNote: boolean;
+  hasNotice: boolean;
+  hasLoading: boolean;
+  noticeText: string | null;
   translation: string | null;
 } {
   const root = bubbleShadow();
@@ -130,6 +156,9 @@ function bubbleSnapshot(): {
       hasDetailBtn: false,
       hasSaveBtn: false,
       hasNote: false,
+      hasNotice: false,
+      hasLoading: false,
+      noticeText: null,
       translation: null,
     };
   }
@@ -139,6 +168,9 @@ function bubbleSnapshot(): {
     hasDetailBtn: !!root.querySelector(".dr-bubble__detail"),
     hasSaveBtn: !!root.querySelector(".dr-bubble__btn"),
     hasNote: !!root.querySelector(".dr-bubble__note"),
+    hasNotice: !!root.querySelector(".dr-bubble__notice"),
+    hasLoading: !!root.querySelector(".dr-bubble__loading"),
+    noticeText: root.querySelector(".dr-bubble__notice")?.textContent ?? null,
     translation: root.querySelector(".dr-bubble__translation")?.textContent ?? null,
   };
 }
@@ -317,9 +349,19 @@ describe("click translator", () => {
     delete globalThis.chrome;
   });
 
-  function setup(saved: VocabWord | null = null) {
-    const { stub, sentMessages } = installChromeStub(saved);
-    const settings: Settings = { ...DEFAULT_SETTINGS, ui_language: "en" };
+  function setup(
+    saved: VocabWord | null = null,
+    options: { translateResult?: TranslateResultFn; settings?: Partial<Settings> } = {}
+  ) {
+    const { stub, sentMessages } = installChromeStub({
+      savedRecord: saved,
+      translateResult: options.translateResult,
+    });
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      ui_language: "en",
+      ...options.settings,
+    };
     const bubble = createBubble();
     const toast = createToast();
     const ct = createClickTranslator({
@@ -482,6 +524,138 @@ describe("click translator", () => {
     ct.showHover({ anchor: ANCHOR, saved: word });
     ct.showSaved({ anchor: ANCHOR, saved: word });
     expect(bubbleSnapshot().hasDeleteBtn).toBe(true);
+  });
+
+  // ─── alreadyInLang flow ─────────────────────────────────────
+  //
+  // Uses showSelection as the entry point — it's the simplest public
+  // surface that drives the click translator's startFlow path (the one
+  // that consumes TRANSLATE_REQUEST responses). The chrome stub is
+  // configured to return alreadyInLang=true on the first call and
+  // alreadyInLang=false when force=true, mirroring how the real
+  // background derives the flag.
+
+  it("renders the alreadyInLang notice when the response carries alreadyInLang=true", async () => {
+    const { ct, sentMessages } = setup(null, {
+      settings: { translation_direction: { source: "en", target: "ja" } },
+      translateResult: ({ force }) => ({
+        ok: true,
+        data: {
+          translated: "konnichiwa",
+          detectedLang: "ja",
+          alreadyInLang: !force,
+        },
+      }),
+    });
+
+    ct.showSelection({ text: "こんにちは", anchor: ANCHOR, context: "" });
+    await flushMicrotasks();
+
+    const snap = bubbleSnapshot();
+    expect(snap.hasNotice).toBe(true);
+    expect(snap.hasTranslated).toBe(false);
+    expect(snap.noticeText).toContain("Japanese");
+
+    // The notice must offer a "translate anyway" button.
+    const anywayBtn = bubbleShadow()?.querySelector<HTMLButtonElement>(
+      ".dr-bubble__btn--ghost"
+    );
+    expect(anywayBtn).toBeTruthy();
+    expect(anywayBtn!.textContent).toBe("Translate anyway");
+
+    // And exactly one TRANSLATE_REQUEST was issued so far, without force.
+    const translateMsgs = sentMessages.filter(
+      (m): m is { type: "TRANSLATE_REQUEST"; force?: boolean } =>
+        (m as { type?: string }).type === "TRANSLATE_REQUEST"
+    );
+    expect(translateMsgs).toHaveLength(1);
+    expect(translateMsgs[0].force).toBeUndefined();
+  });
+
+  it("translate-anyway re-issues with force=true and lands on translated state", async () => {
+    const { ct, sentMessages } = setup(null, {
+      settings: { translation_direction: { source: "en", target: "ja" } },
+      translateResult: ({ force }) => ({
+        ok: true,
+        data: {
+          translated: "konnichiwa",
+          detectedLang: "ja",
+          alreadyInLang: !force,
+        },
+      }),
+    });
+
+    ct.showSelection({ text: "こんにちは", anchor: ANCHOR, context: "" });
+    await flushMicrotasks();
+    expect(bubbleSnapshot().hasNotice).toBe(true);
+
+    bubbleShadow()
+      ?.querySelector<HTMLButtonElement>(".dr-bubble__btn--ghost")
+      ?.click();
+    // The bubble must briefly transit through `loading` before the cache
+    // hit + force-bypass swap to `translated`. Snapshot synchronously after
+    // the click — startFlow's `bubble.show({ kind: "loading" })` runs before
+    // the awaited Promise.all yields, so the loading frame is observable.
+    const midSnap = bubbleSnapshot();
+    expect(midSnap.hasLoading).toBe(true);
+    expect(midSnap.hasNotice).toBe(false);
+
+    await flushMicrotasks();
+
+    const snap = bubbleSnapshot();
+    expect(snap.hasNotice).toBe(false);
+    expect(snap.hasTranslated).toBe(true);
+    expect(snap.translation).toBe("konnichiwa");
+
+    const translateMsgs = sentMessages.filter(
+      (m): m is { type: "TRANSLATE_REQUEST"; force?: boolean } =>
+        (m as { type?: string }).type === "TRANSLATE_REQUEST"
+    );
+    // First request without force, retry with force=true.
+    expect(translateMsgs).toHaveLength(2);
+    expect(translateMsgs[0].force).toBeUndefined();
+    expect(translateMsgs[1].force).toBe(true);
+  });
+
+  it("alreadyInLang state respects token monotonicity — late response is dropped", async () => {
+    let resolveFirst: ((v: unknown) => void) | null = null;
+    const firstResponse = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    let callCount = 0;
+    const { ct } = setup(null, {
+      settings: { translation_direction: { source: "en", target: "ja" } },
+      translateResult: () => {
+        callCount += 1;
+        if (callCount === 1) return firstResponse;
+        return {
+          ok: true,
+          data: {
+            translated: "second",
+            detectedLang: "en",
+            alreadyInLang: false,
+          },
+        };
+      },
+    });
+
+    // First flow stalls awaiting `firstResponse`.
+    ct.showSelection({ text: "first", anchor: ANCHOR, context: "" });
+    // Second flow supersedes it before the first can resolve.
+    ct.showSelection({ text: "second", anchor: ANCHOR, context: "" });
+    await flushMicrotasks();
+
+    // Now resolve the stale first request with alreadyInLang=true.
+    resolveFirst!({
+      ok: true,
+      data: { translated: "first-translation", detectedLang: "ja", alreadyInLang: true },
+    });
+    await flushMicrotasks();
+
+    // The bubble must reflect the second flow, not regress to the stale notice.
+    const snap = bubbleSnapshot();
+    expect(snap.hasNotice).toBe(false);
+    expect(snap.translation).toBe("second");
   });
 });
 

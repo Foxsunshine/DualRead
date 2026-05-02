@@ -30,6 +30,13 @@ export type BubbleState =
   // buttons — clicking the highlight promotes the bubble to the
   // full `translated` saved variant via the click pipeline.
   | { kind: "hoverPreview"; word: string; translation: string; note?: string }
+  // The selected text was detected to already be in the user's chosen
+  // target language, so we suppress the translated panel and offer a
+  // dim "translate anyway" override instead. `targetLangName` is the
+  // localized display name for the target ("简体中文" / "日本語" / …)
+  // — interpolated into the body string by i18n.ts so the orchestrator
+  // doesn't have to build a sentence from fragments.
+  | { kind: "alreadyInLang"; word: string; targetLangName: string }
   | { kind: "error"; word: string; message: string };
 
 // Anchor rect — caller provides the bounding box we should position next
@@ -52,6 +59,15 @@ export interface BubbleStrings {
   close: string;
   loading: string;
   retry: string;
+  // Body-line template for the alreadyInLang state. The bubble passes in
+  // the localized target-language name supplied by the orchestrator
+  // (e.g. "简体中文") and the function returns the full sentence. Kept
+  // as a template rather than a pre-formatted string so each locale can
+  // place the language name wherever the grammar prefers.
+  alreadyInLangBody: (targetLangName: string) => string;
+  // Secondary action that bypasses the alreadyInLang heuristic and
+  // forces a translation round-trip ("仍然翻译" / "Translate anyway").
+  translateAnyway: string;
 }
 
 export interface BubbleShowOptions {
@@ -63,6 +79,10 @@ export interface BubbleShowOptions {
   onDetail?: () => void;
   onDelete?: () => void;
   onRetry?: () => void;
+  // Click handler for the "translate anyway" button rendered on the
+  // alreadyInLang state. Wired from the orchestrator (clickTranslate)
+  // so it can re-issue TRANSLATE_REQUEST with `force: true`.
+  onTranslateAnyway?: () => void;
   // Hover-preview plumbing. Caller passes these so the orchestrator
   // can cancel a pending mouseleave-hide when the cursor moves from
   // the highlight word into the bubble itself, or schedule one when
@@ -262,7 +282,7 @@ export function createBubble(): BubbleHandle {
 
   function render(opts: BubbleShowOptions): void {
     clearRoot();
-    const { state, strings, onSave, onDetail, onDelete, onRetry } = opts;
+    const { state, strings, onSave, onDetail, onDelete, onRetry, onTranslateAnyway } = opts;
 
     // Header row is shared across all states — word + close button.
     renderHeader(state.word, strings.close, () => dismiss());
@@ -294,6 +314,25 @@ export function createBubble(): BubbleHandle {
       label.textContent = strings.loading;
       loading.appendChild(label);
       root.appendChild(loading);
+      return;
+    }
+
+    if (state.kind === "alreadyInLang") {
+      const notice = document.createElement("div");
+      notice.className = "dr-bubble__notice";
+      notice.textContent = strings.alreadyInLangBody(state.targetLangName);
+      root.appendChild(notice);
+      if (onTranslateAnyway) {
+        const actions = document.createElement("div");
+        actions.className = "dr-bubble__actions";
+        const anyway = document.createElement("button");
+        anyway.type = "button";
+        anyway.className = "dr-bubble__btn dr-bubble__btn--ghost";
+        anyway.textContent = strings.translateAnyway;
+        anyway.addEventListener("click", onTranslateAnyway);
+        actions.appendChild(anyway);
+        root.appendChild(actions);
+      }
       return;
     }
 

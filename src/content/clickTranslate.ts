@@ -36,7 +36,7 @@ import type { ToastHandle } from "./toast";
 import { sendMessage, STORAGE_PREFIX_VOCAB } from "../shared/messages";
 import { wordAtOffset } from "./wordBoundary";
 import { extractContext } from "./contextSentence";
-import { bubbleStrings, toastStrings, translateErrorMessage } from "./i18n";
+import { bubbleStrings, langDisplayName, toastStrings, translateErrorMessage } from "./i18n";
 
 // Grace period between mouseleave-from-highlight (or mouseleave-from-bubble)
 // and the actual hide. Lets the user move the cursor diagonally from the
@@ -206,6 +206,11 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     anchor: BubbleAnchor;
     context: string;
     lang: Lang;
+    // Set when the user clicks "translate anyway" on the alreadyInLang
+    // notice. Forwarded to the background so it bypasses the heuristic
+    // and lets the response paint as a normal translation regardless of
+    // detected source language.
+    force: boolean;
   }
   let active: CurrentClick | null = null;
 
@@ -223,6 +228,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
 
   async function startFlow(click: CurrentClick): Promise<void> {
     active = click;
+    const direction = getSettings().translation_direction;
     const strings = bubbleStrings(click.lang);
     const word_key = click.word.trim().toLowerCase();
 
@@ -237,7 +243,6 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
 
     // Translate and saved-check in parallel — both involve I/O, neither
     // depends on the other, and the bubble reveals the combined result.
-    const direction = getSettings().translation_direction;
     const [saved, resp] = await Promise.all([
       readSavedWord(word_key),
       sendMessage({
@@ -246,6 +251,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
         target: direction.target,
         source: direction.source,
         requester: "bubble",
+        force: click.force ? true : undefined,
       }),
     ]);
 
@@ -266,8 +272,45 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       return;
     }
 
-    const translation = (resp.data as TranslateResult | undefined)?.translated || "—";
+    const data = resp.data as TranslateResult | undefined;
+    if (data?.alreadyInLang === true) {
+      renderAlreadyInLang(click, direction.target, strings);
+      return;
+    }
+
+    const translation = data?.translated || "—";
     renderTranslated(click, translation, saved);
+  }
+
+  function renderAlreadyInLang(
+    click: CurrentClick,
+    target: Lang,
+    strings: ReturnType<typeof bubbleStrings>
+  ): void {
+    bubble.show({
+      anchor: click.anchor,
+      state: {
+        kind: "alreadyInLang",
+        word: click.word,
+        targetLangName: langDisplayName(target, click.lang),
+      },
+      strings,
+      onTranslateAnyway: () => {
+        // A fresh token + force=true reissues the flow through the same
+        // pipeline; the cached response is reused but the recomputed
+        // alreadyInLang flag will now be false, so the bubble lands on
+        // the regular translated state.
+        const next: CurrentClick = {
+          ...click,
+          token: ++currentToken,
+          force: true,
+        };
+        void startFlow(next);
+      },
+      onClose: () => {
+        if (active?.token === click.token) active = null;
+      },
+    });
   }
 
   function renderTranslated(click: CurrentClick, translation: string, saved: VocabWord | null): void {
@@ -384,6 +427,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       anchor: rectForWord(resolved.textNode, resolved.start, resolved.end),
       context,
       lang: getSettings().ui_language,
+      force: false,
     };
     // A click in the document supersedes any pending hover dismissal.
     clearHoverHideTimer();
@@ -436,6 +480,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       anchor,
       context: saved.ctx ?? "",
       lang,
+      force: false,
     };
     active = click;
     // A click that promoted the surface to saved supersedes any pending
@@ -511,6 +556,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       anchor,
       context: saved.ctx ?? "",
       lang,
+      force: false,
     };
     active = click;
     // Cursor re-entered a highlight; cancel any pending hide from the
@@ -587,6 +633,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       anchor: args.anchor,
       context: args.context,
       lang,
+      force: false,
     };
     clearHoverHideTimer();
     void startFlow(click);

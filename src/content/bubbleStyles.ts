@@ -216,5 +216,43 @@ export function bubbleCSS(): string {
   color: ${DR_TOKENS.red};
   font-size: 12px;
 }
+
+/* alreadyInLang state. Same vertical rhythm as the translation row but
+   muted (the user is being told nothing happened) and prefixed with a
+   small info glyph drawn as a CSS pseudo-element so we don't need to
+   ship another inline SVG. The "translate anyway" button below it is
+   the ghost variant of dr-bubble__btn — a transparent fill with the
+   accent ink so it sits as a secondary action under the notice. */
+.dr-bubble__notice {
+  margin-top: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: ${DR_TOKENS.inkSoft};
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dr-bubble__notice::before {
+  content: "ⓘ";
+  flex: 0 0 auto;
+  color: ${DR_TOKENS.inkMuted};
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.dr-bubble__btn--ghost {
+  background: transparent;
+  color: ${DR_TOKENS.accentInk};
+  padding: 4px 8px;
+  border: 1px solid ${DR_TOKENS.borderSoft};
+}
+.dr-bubble__btn--ghost:hover {
+  background: ${DR_TOKENS.borderSoft};
+  color: ${DR_TOKENS.accent};
+}
+.dr-bubble__btn--ghost:focus-visible {
+  outline: 2px solid ${DR_TOKENS.accent};
+  outline-offset: 1px;
+}
 `;
 }
