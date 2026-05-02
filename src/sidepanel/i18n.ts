@@ -71,6 +71,16 @@ interface Strings {
   // nudges the user toward the page-level toggle so they can resume.
   learningModePausedTitle: string;
   learningModePausedBody: string;
+  // Settings group for hiding the floating FAB on a per-origin basis.
+  // The selection bubble and saved-word highlights stay active — only the
+  // page-level FAB is suppressed.
+  fabDisabledOriginsTitle: string;
+  fabDisabledOriginsHint: string;
+  originPlaceholder: string;
+  addOrigin: string;
+  removeOrigin: string;
+  originInvalid: string;
+  fabDisabledOriginsEmpty: string;
 }
 
 export const DR_STRINGS: Record<Lang, Strings> = {
@@ -140,6 +150,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     feedbackTitle: "反馈 / Bug 报告",
     learningModePausedTitle: "学习模式已暂停",
     learningModePausedBody: "网页上的点词翻译、划词翻译和高亮都已关闭。点击页面右下角的悬浮按钮即可重新开启。",
+    fabDisabledOriginsTitle: "隐藏悬浮按钮",
+    fabDisabledOriginsHint: "在以下站点不显示悬浮按钮（划词翻译和高亮仍正常工作）",
+    originPlaceholder: "https://example.com",
+    addOrigin: "添加",
+    removeOrigin: "移除",
+    originInvalid: "请输入完整的 URL，例如 https://example.com",
+    fabDisabledOriginsEmpty: "暂无隐藏的站点",
   },
   en: {
     appName: "DualRead",
@@ -207,6 +224,13 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     feedbackTitle: "Feedback / Bug report",
     learningModePausedTitle: "Learning mode paused",
     learningModePausedBody: "Click-to-translate, drag-to-translate, and page highlights are off. Click the floating button at the bottom-right of any page to turn them back on.",
+    fabDisabledOriginsTitle: "Hide floating button",
+    fabDisabledOriginsHint: "Don't show the floating button on these sites (selection translation and highlights still work).",
+    originPlaceholder: "https://example.com",
+    addOrigin: "Add",
+    removeOrigin: "Remove",
+    originInvalid: "Enter a full URL, for example https://example.com",
+    fabDisabledOriginsEmpty: "No sites added.",
   },
 };
 

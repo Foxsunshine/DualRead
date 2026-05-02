@@ -159,6 +159,13 @@ const clickTranslator = createClickTranslator({
 // lets the storage listener and shutdown path reach it.
 let fab: ReturnType<typeof createFab> | null = null;
 
+// True when the user has added the current page's origin to the FAB
+// hide-list. We only check `location.origin` once per page load — origin
+// can't change without a navigation.
+function isFabDisabledHere(settings: Settings): boolean {
+  return settings.fab_disabled_origins.includes(location.origin);
+}
+
 // Persist a new learning-mode value. Bubble is dismissed on turn-off so
 // a user who pauses mid-translation doesn't see a stale bubble linger.
 async function setLearningMode(enabled: boolean): Promise<void> {
@@ -269,11 +276,13 @@ async function init(): Promise<void> {
   // fully clean page — highlights unwrapped too.
   highlighter.setEnabled(settings.auto_highlight_enabled && settings.learning_mode_enabled);
 
-  fab = createFab({
-    enabled: settings.learning_mode_enabled,
-    strings: fabStrings(settings.ui_language),
-    onToggle: () => void setLearningMode(!currentSettings.learning_mode_enabled),
-  });
+  if (!isFabDisabledHere(settings)) {
+    fab = createFab({
+      enabled: settings.learning_mode_enabled,
+      strings: fabStrings(settings.ui_language),
+      onToggle: () => void setLearningMode(!currentSettings.learning_mode_enabled),
+    });
+  }
 
   // React to cross-context state changes:
   //  - sync area, any `v:*` key → vocab membership changed → rebuild matcher.
@@ -306,6 +315,22 @@ async function init(): Promise<void> {
       fab?.setEnabled(next.learning_mode_enabled);
       if (next.ui_language !== prev.ui_language) {
         fab?.setStrings(fabStrings(next.ui_language));
+      }
+      // React to per-origin hide-list flips. Tearing down `fab` rather than
+      // hiding it via CSS keeps the host DOM completely free of our element
+      // when the user has opted out — closer to "FAB never existed".
+      const wasDisabled = isFabDisabledHere(prev);
+      const nowDisabled = isFabDisabledHere(next);
+      if (!wasDisabled && nowDisabled) {
+        fab?.dispose();
+        fab = null;
+      } else if (wasDisabled && !nowDisabled) {
+        fab = createFab({
+          enabled: next.learning_mode_enabled,
+          strings: fabStrings(next.ui_language),
+          onToggle: () =>
+            void setLearningMode(!currentSettings.learning_mode_enabled),
+        });
       }
     }
   };
