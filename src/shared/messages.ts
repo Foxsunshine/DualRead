@@ -57,8 +57,25 @@ export const LOCAL_KEY_LAST_SYNCED = "last_synced_at";
 // indicator can surface "error" (R5 / D24) with a copy-pasteable detail for
 // bug reports.
 export const LOCAL_KEY_LAST_ERROR = "last_sync_error";
+export const LOCAL_KEY_SETTINGS = "settings";
 export const STORAGE_PREFIX_VOCAB = "v:";
 export const VOCAB_QUOTA_WARN_AT = 450;
+// chrome.storage.sync hard-limits a single value to 8 KB after JSON
+// serialisation. We reserve ~400 bytes as headroom for the storage key prefix
+// and Chrome's own envelope overhead. Both ingress (side-panel save) and
+// flush (background buffer) check against this; ingress shows a UI error,
+// flush truncates ctx then hard-rejects with last_sync_error.
+export const SYNC_VALUE_MAX_BYTES = 7800;
+// Tracks whether the running build's schema matches what is in
+// chrome.storage.sync. Stored under chrome.storage.local. Plain number
+// rather than the literal CURRENT_SCHEMA_VERSION because once written it
+// represents an arbitrary historical version.
+export const LOCAL_KEY_SCHEMA_VERSION = "schema_version";
+// Held while a migration pass is running so two SW wakes don't fight over
+// the same storage.sync record set. Self-heals after MIGRATION_LOCK_TTL_MS
+// in case a previous wake crashed mid-flight.
+export const LOCAL_KEY_MIGRATION_LOCK = "migration_lock";
+export const MIGRATION_LOCK_TTL_MS = 60_000;
 
 // Shape of what lands in chrome.storage.local under LOCAL_KEY_LAST_ERROR.
 // `code` is deliberately a free-form string (Chrome's errors surface as either

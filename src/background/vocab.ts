@@ -10,11 +10,15 @@
 import {
   LOCAL_KEY_LAST_ERROR,
   LOCAL_KEY_LAST_SYNCED,
+  LOCAL_KEY_SETTINGS,
   LOCAL_KEY_WRITE_BUFFER,
   STORAGE_PREFIX_VOCAB,
+  SYNC_VALUE_MAX_BYTES,
 } from "../shared/messages";
 import type { SyncErrorRecord } from "../shared/messages";
-import type { VocabWord } from "../shared/types";
+import { estimateRecordBytes, migrateRecord, shrinkToCap } from "../shared/migration";
+import { DEFAULT_SETTINGS } from "../shared/types";
+import type { Settings, VocabWord } from "../shared/types";
 
 interface PendingState {
   sets: Record<string, VocabWord>;
@@ -54,6 +58,15 @@ function scheduleFlush(): void {
   }, FLUSH_DEBOUNCE_MS);
 }
 
+async function loadSettings(): Promise<Settings> {
+  try {
+    const res = await chrome.storage.local.get(LOCAL_KEY_SETTINGS);
+    return (res[LOCAL_KEY_SETTINGS] as Settings | undefined) ?? DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
 async function flush(): Promise<void> {
   if (inFlight) return inFlight;
   if (Object.keys(pending.sets).length === 0 && pending.deletes.length === 0) return;
@@ -65,8 +78,37 @@ async function flush(): Promise<void> {
 
   inFlight = (async () => {
     try {
+      // Re-run the migration on every snapshot record: SAVE messages that
+      // landed before init() finished may carry pre-v2 shapes from the
+      // buffer mirror. migrateRecord is idempotent on v2 input.
+      const settings = await loadSettings();
       const setPayload: Record<string, VocabWord> = {};
-      for (const [k, w] of Object.entries(snapshot.sets)) setPayload[keyOf(k)] = w;
+      const oversized: Array<{ key: string; bytes: number }> = [];
+
+      for (const [k, w] of Object.entries(snapshot.sets)) {
+        const upgraded = migrateRecord(w, settings);
+        if (upgraded === null) continue;
+        const sized = shrinkToCap(upgraded, SYNC_VALUE_MAX_BYTES);
+        const bytes = estimateRecordBytes(sized);
+        if (bytes > SYNC_VALUE_MAX_BYTES) {
+          oversized.push({ key: k, bytes });
+          continue;
+        }
+        setPayload[keyOf(k)] = sized;
+      }
+
+      if (oversized.length > 0) {
+        // Oversized records are dropped, not re-enqueued: they would bounce
+        // off the cap on every flush and starve the rest of the buffer.
+        // last_sync_error carries the offending keys for bug reports.
+        const detail = oversized.map((o) => `${o.key}:${o.bytes}b`).join(",");
+        const record: SyncErrorRecord = {
+          code: `oversize:${detail}`,
+          at: Date.now(),
+        };
+        await chrome.storage.local.set({ [LOCAL_KEY_LAST_ERROR]: record });
+      }
+
       if (Object.keys(setPayload).length > 0) await chrome.storage.sync.set(setPayload);
       if (snapshot.deletes.length > 0) {
         await chrome.storage.sync.remove(snapshot.deletes.map(keyOf));
@@ -150,6 +192,19 @@ export async function getVocab(): Promise<VocabWord[]> {
   for (const [k, w] of Object.entries(pending.sets)) byKey.set(k, w);
   for (const k of pending.deletes) byKey.delete(k);
   return Array.from(byKey.values());
+}
+
+// Best-effort drain for chrome.runtime.onSuspend. The SW suspension window
+// is only a few seconds — authoritative recovery still goes through the
+// cold-start hydrate from write_buffer.
+export async function flushPending(): Promise<void> {
+  await hydrate();
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  if (inFlight) await inFlight;
+  await flush();
 }
 
 export async function clearVocab(): Promise<void> {
