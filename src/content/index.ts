@@ -19,16 +19,9 @@ import { snapOffsetsToWord } from "./wordBoundary";
 import { createBubble } from "./bubble";
 import { createClickTranslator } from "./clickTranslate";
 import { createFab } from "./fab";
-import type { FabPosition } from "./fab";
 import { createToast } from "./toast";
 import { extractContext } from "./contextSentence";
 import { fabStrings } from "./i18n";
-
-// Persisted FAB top-left lives in chrome.storage.local under this key.
-// Stored separately from `settings` so a position write doesn't churn the
-// whole settings blob (and so the per-device nature stays explicit — the
-// settings object syncs in some contexts; position never should).
-const LOCAL_KEY_FAB_POSITION = "fab_position";
 
 // ───── Extension-context liveness ────────────────────────────
 // When the user reloads the extension (or Chrome silently updates it while
@@ -176,20 +169,11 @@ function isFabDisabledHere(settings: Settings): boolean {
   return settings.fab_disabled_origins.includes(location.origin);
 }
 
-// Cached on init so re-mounts (after the user removes the current origin
-// from the hide-list) don't have to re-read storage.
-let cachedFabPosition: FabPosition | undefined;
-
 function mountFab(settings: Settings): ReturnType<typeof createFab> {
   return createFab({
     enabled: settings.learning_mode_enabled,
     strings: fabStrings(settings.ui_language),
     onToggle: () => void setLearningMode(!currentSettings.learning_mode_enabled),
-    initialPosition: cachedFabPosition,
-    onPositionChange: (pos) => {
-      cachedFabPosition = pos;
-      persistFabPosition(pos);
-    },
   });
 }
 
@@ -320,23 +304,6 @@ async function readSettings(): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...(settings as Partial<Settings> | undefined) };
 }
 
-// Read the saved FAB position. Returns undefined when the user has never
-// dragged — the FAB's factory uses its own bottom-right default in that
-// case, so we don't need to compute one here.
-async function readFabPosition(): Promise<FabPosition | undefined> {
-  const res = await chrome.storage.local.get(LOCAL_KEY_FAB_POSITION);
-  const raw = res[LOCAL_KEY_FAB_POSITION] as Partial<FabPosition> | undefined;
-  if (!raw || typeof raw.x !== "number" || typeof raw.y !== "number") return undefined;
-  return { x: raw.x, y: raw.y };
-}
-
-function persistFabPosition(pos: FabPosition): void {
-  if (!chrome.runtime?.id) return;
-  void chrome.storage.local
-    .set({ [LOCAL_KEY_FAB_POSITION]: pos })
-    .catch(() => shutdownIfOrphaned());
-}
-
 // Boot sequence. `document_idle` run_at means DOMContentLoaded has typically
 // already fired, but the DESIGN.md §3 gotcha #10 calls out rare edge cases
 // where body isn't mounted yet.
@@ -347,13 +314,11 @@ async function init(): Promise<void> {
     );
   }
 
-  const [settings, keys, savedPos] = await Promise.all([
+  const [settings, keys] = await Promise.all([
     readSettings(),
     readVocabKeys(),
-    readFabPosition(),
   ]);
   currentSettings = settings;
-  cachedFabPosition = savedPos;
   highlighter.setStyle(settings.highlight_style);
   highlighter.setVocab(keys);
   // Highlighter is gated on both the per-feature auto_highlight setting

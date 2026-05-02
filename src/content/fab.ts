@@ -1,22 +1,26 @@
-// Floating action button — global DualRead on/off switch (post-Phase-H D52).
+// Floating action button — global DualRead on/off switch.
 //
 // Why this exists:
 //   Users learning English on ad-hoc pages need a one-gesture way to pause
 //   DualRead without navigating to the side panel's Settings tab. A fixed
-//   corner FAB is the standard web idiom for "primary global action on
-//   every page" and costs 44×44 px of screen real estate. When off, the
+//   bottom-right FAB is the standard web idiom for "primary global action
+//   on every page" and costs 44×44 px of screen real estate. When off, the
 //   FAB stays visible (dimmed) so the user can turn learning mode back on
 //   without reopening the extension.
 //
+// Position:
+//   Pinned bottom-right via the shadow `:host { bottom; right }` rule,
+//   mirrored by inline `!important` on the host element. Same pattern as
+//   `toast.ts`. Avoid the Popover API and JS-computed `top`/`left` here —
+//   both interact badly with host page CSS and the popover UA defaults.
+//
 // Shadow-DOM hygiene:
-//   - Closed Shadow DOM on an element attached to <html> (not <body>) so
-//     host scripts using `document.body.innerHTML =` reflows can't wipe it.
-//   - `:host { all: initial }` resets every inherited property. Host pages
-//     occasionally ship aggressive `* { box-sizing: content-box !important }`
-//     or font overrides; we want predictability, not cascade.
+//   - Closed Shadow DOM so host scripts can't reach our internals.
+//   - `:host { all: initial !important }` resets every inherited property.
+//     Host pages occasionally ship aggressive `* { box-sizing: content-box
+//     !important }` or font overrides; we want predictability, not cascade.
 //   - `z-index: 2147483645` is one less than the bubble (…46) so if the
-//     user opens a bubble that overlaps the FAB, the bubble wins. Both
-//     sit below Chrome's own overlay ceiling (`MAX`).
+//     user opens a bubble that overlaps the FAB, the bubble wins.
 //
 // State:
 //   - The caller owns the `learning_mode_enabled` flag in storage. The FAB
@@ -47,39 +51,19 @@ export interface FabStrings {
   offLabel: string;
 }
 
-// Persisted FAB top-left in viewport pixels. Lives in chrome.storage.local
-// (not sync) because position is a per-device ergonomic choice — a 4K
-// monitor's preferred spot is wrong on a laptop.
-export interface FabPosition {
-  x: number;
-  y: number;
-}
-
 export interface FabOptions {
   enabled: boolean;
   strings: FabStrings;
   onToggle(): void;
-  // Restored position from storage. Undefined → default to bottom-right
-  // corner of the current viewport.
-  initialPosition?: FabPosition;
-  // Fired once per drag, on pointerup, after the position has been clamped
-  // to the visible viewport. Caller persists.
-  onPositionChange?: (pos: FabPosition) => void;
 }
 
-// FAB is a fixed 44×44 button. Hardcoding here (instead of measuring) keeps
-// the drag math correct even before the host element has laid out.
-const FAB_SIZE = 44;
-// Smallest distance from the viewport edge we'll allow the FAB to sit, so
-// it remains fully visible and clickable even after a clamp.
-const VIEWPORT_MARGIN = 4;
-// Default offset for the un-dragged position — matches the original
-// `right/bottom: 20px` layout.
-const DEFAULT_OFFSET = 20;
-// Pointer travel below this counts as a click; above, a drag. Tuned so a
-// shaky tap (trackpad, touch) still toggles the switch but a deliberate
-// move starts repositioning.
-const DRAG_THRESHOLD_PX = 4;
+// Layout constants — kept in one place so the CSS string and the inline
+// host-style writes can't drift. Drift between those two sources was the
+// root cause of a positioning bug, so any future change must update both.
+const FAB_SIZE_PX = 44;
+const FAB_OFFSET_PX = 20;
+// One below the bubble's z-index so an overlapping bubble draws on top.
+const FAB_Z_INDEX = 2147483645;
 
 // Single SVG for both states — color + opacity handle the visual diff.
 // Path is a stylized "D" (DualRead mark) in a 24×24 box. Using a path
@@ -99,29 +83,40 @@ function fabCSS(): string {
   // the Shadow DOM boundary for selectors that match the host itself).
   // Reset stylesheets that ship `* { display: none !important }` or
   // `[class] { position: static !important }` would otherwise yank the
-  // FAB out of view. The `!important` here wins by CSS origin + flag.
+  // FAB out of view.
   //
-  // `top` / `left` are written inline by `applyPosition` (also `!important`)
-  // so the FAB can be repositioned by drag without rewriting this rule.
+  // Anchors (`bottom`/`right`) are written AFTER `all: initial` so the
+  // shorthand reset doesn't clobber them — declaration order within a
+  // single rule is the tiebreaker for equal-priority writes.
   return `
 :host {
   all: initial !important;
   display: block !important;
   position: fixed !important;
-  width: auto !important;
-  height: auto !important;
-  z-index: 2147483645 !important;
+  bottom: ${FAB_OFFSET_PX}px !important;
+  right: ${FAB_OFFSET_PX}px !important;
+  top: auto !important;
+  left: auto !important;
+  width: ${FAB_SIZE_PX}px !important;
+  height: ${FAB_SIZE_PX}px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  z-index: ${FAB_Z_INDEX} !important;
   pointer-events: auto !important;
   visibility: visible !important;
   opacity: 1 !important;
+  transform: none !important;
+  float: none !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 .dr-fab {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: ${FAB_SIZE_PX}px;
+  height: ${FAB_SIZE_PX}px;
   border-radius: 50%;
   background: ${DR_TOKENS.accent};
   color: #fff;
@@ -147,49 +142,35 @@ function fabCSS(): string {
 `;
 }
 
-// Constrain (x, y) so the full 44×44 button stays inside the viewport with
-// at least VIEWPORT_MARGIN of breathing room on every side. Pure function so
-// callers (init + each pointermove + pointerup) can share the same math.
-function clampToViewport(x: number, y: number): FabPosition {
-  const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - FAB_SIZE - VIEWPORT_MARGIN);
-  const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - FAB_SIZE - VIEWPORT_MARGIN);
-  return {
-    x: Math.max(VIEWPORT_MARGIN, Math.min(maxX, x)),
-    y: Math.max(VIEWPORT_MARGIN, Math.min(maxY, y)),
-  };
-}
-
-// Where the FAB lands when the user has never dragged it. Mirrors the
-// pre-drag layout (right/bottom: 20px) and clamps for tiny viewports.
-function defaultPosition(): FabPosition {
-  return clampToViewport(
-    window.innerWidth - FAB_SIZE - DEFAULT_OFFSET,
-    window.innerHeight - FAB_SIZE - DEFAULT_OFFSET
-  );
-}
-
-// Inline-style writes use !important so a hostile host page's
-// `[style] { position: static !important }` can't dislodge the FAB. The
-// shadow-host element only carries the rules we set here — no class
-// names — so this is the only writer that touches its inline style.
-function applyPosition(host: HTMLElement, pos: FabPosition): void {
-  host.style.setProperty("left", `${pos.x}px`, "important");
-  host.style.setProperty("top", `${pos.y}px`, "important");
-  host.style.setProperty("right", "auto", "important");
-  host.style.setProperty("bottom", "auto", "important");
-}
-
 // Factory. Mounts once per frame. Caller owns lifecycle via `dispose`.
 export function createFab(options: FabOptions): FabHandle {
   // Namespaced custom tag (`dualread-fab` not `dr-fab`) to avoid any
-  // collision with host pages that reserve short `dr-*` prefixes. Some
-  // design systems (and Reddit's Shreddit components) define custom
-  // elements of their own, and a clash makes our element either fail to
-  // upgrade or inherit the wrong base class.
+  // collision with host pages that reserve short `dr-*` prefixes.
   const host = document.createElement("dualread-fab");
+  // Mirror the :host CSS inline so we win against author stylesheets
+  // targeting our tag, and survive sanitisers that strip <style> from
+  // shadow trees.
+  host.style.setProperty("position", "fixed", "important");
+  host.style.setProperty("bottom", `${FAB_OFFSET_PX}px`, "important");
+  host.style.setProperty("right", `${FAB_OFFSET_PX}px`, "important");
+  host.style.setProperty("top", "auto", "important");
+  host.style.setProperty("left", "auto", "important");
+  host.style.setProperty("width", `${FAB_SIZE_PX}px`, "important");
+  host.style.setProperty("height", `${FAB_SIZE_PX}px`, "important");
+  host.style.setProperty("margin", "0", "important");
+  host.style.setProperty("padding", "0", "important");
+  host.style.setProperty("border", "0", "important");
+  host.style.setProperty("background", "transparent", "important");
+  host.style.setProperty("z-index", String(FAB_Z_INDEX), "important");
+  host.style.setProperty("display", "block", "important");
+  host.style.setProperty("visibility", "visible", "important");
+  host.style.setProperty("opacity", "1", "important");
+  host.style.setProperty("pointer-events", "auto", "important");
+  host.style.setProperty("transform", "none", "important");
+  host.style.setProperty("float", "none", "important");
+
   // Closed shadow so host scripts can't query into our tree and mutate
-  // state. Matches the bubble's convention (defense in depth against
-  // hostile pages).
+  // state.
   const shadow = host.attachShadow({ mode: "closed" });
 
   const style = document.createElement("style");
@@ -205,11 +186,6 @@ export function createFab(options: FabOptions): FabHandle {
 
   let currentEnabled = options.enabled;
   let currentStrings = options.strings;
-  let position = clampToViewport(
-    options.initialPosition?.x ?? defaultPosition().x,
-    options.initialPosition?.y ?? defaultPosition().y
-  );
-  applyPosition(host, position);
 
   // Re-paint the button's class + aria state from in-memory state. Called
   // from setEnabled and setStrings so both paths stay in sync.
@@ -225,88 +201,16 @@ export function createFab(options: FabOptions): FabHandle {
   // Mount on <body>. Reddit (Shreddit), and a handful of other heavy SPAs
   // don't cleanly render custom elements appended as direct children of
   // <html> — the element ends up in the DOM but outside the layout tree.
-  // Body-mount is the universal convention for floating UI and works on
-  // every host we've tested. If a host page nukes body.innerHTML later,
-  // the content script's next init() (on navigation) will re-add us.
   (document.body ?? document.documentElement).appendChild(host);
-
-  // Drag state. `dragStart` snapshots both the pointer's viewport position
-  // and the FAB's top-left at pointerdown so pointermove can translate by
-  // the delta without depending on getBoundingClientRect (which would
-  // re-measure mid-drag and amplify any pixel rounding).
-  let dragStart: { pointerX: number; pointerY: number; fabX: number; fabY: number } | null = null;
-  let didDrag = false;
-
-  const onPointerDown = (e: PointerEvent): void => {
-    // Only react to primary-button presses. Right-click / middle-click
-    // shouldn't start a drag.
-    if (e.button !== 0) return;
-    dragStart = {
-      pointerX: e.clientX,
-      pointerY: e.clientY,
-      fabX: position.x,
-      fabY: position.y,
-    };
-    didDrag = false;
-    // Capture so a fast drag that leaves the 44×44 button still sends
-    // pointermove / pointerup back to us.
-    button.setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: PointerEvent): void => {
-    if (!dragStart) return;
-    const dx = e.clientX - dragStart.pointerX;
-    const dy = e.clientY - dragStart.pointerY;
-    if (!didDrag && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-    didDrag = true;
-    position = clampToViewport(dragStart.fabX + dx, dragStart.fabY + dy);
-    applyPosition(host, position);
-  };
-
-  const onPointerUp = (e: PointerEvent): void => {
-    if (!dragStart) return;
-    const wasDrag = didDrag;
-    dragStart = null;
-    try {
-      button.releasePointerCapture(e.pointerId);
-    } catch {
-      /* capture may already be released by the browser */
-    }
-    if (wasDrag) {
-      // Suppress the synthetic click that would otherwise fire after a
-      // pointerup on the same target.
-      e.preventDefault();
-      options.onPositionChange?.(position);
-    }
-  };
 
   const onClick = (e: MouseEvent): void => {
     // Defensive: stop host page handlers from reacting to the click.
     e.preventDefault();
     e.stopPropagation();
-    if (didDrag) {
-      // The pointer travelled past the threshold; treat as a drag and
-      // skip the toggle. Reset so the next gesture starts fresh.
-      didDrag = false;
-      return;
-    }
     options.onToggle();
   };
 
-  button.addEventListener("pointerdown", onPointerDown);
-  button.addEventListener("pointermove", onPointerMove);
-  button.addEventListener("pointerup", onPointerUp);
   button.addEventListener("click", onClick);
-
-  // Window resize can shrink the viewport below the saved position. Re-clamp
-  // on resize so the FAB doesn't strand off-screen until the next drag.
-  const onResize = (): void => {
-    const next = clampToViewport(position.x, position.y);
-    if (next.x === position.x && next.y === position.y) return;
-    position = next;
-    applyPosition(host, position);
-  };
-  window.addEventListener("resize", onResize);
 
   return {
     setEnabled(enabled: boolean): void {
@@ -315,15 +219,17 @@ export function createFab(options: FabOptions): FabHandle {
       paint();
     },
     setStrings(strings: FabStrings): void {
+      if (
+        strings.onLabel === currentStrings.onLabel &&
+        strings.offLabel === currentStrings.offLabel
+      ) {
+        return;
+      }
       currentStrings = strings;
       paint();
     },
     dispose(): void {
-      button.removeEventListener("pointerdown", onPointerDown);
-      button.removeEventListener("pointermove", onPointerMove);
-      button.removeEventListener("pointerup", onPointerUp);
       button.removeEventListener("click", onClick);
-      window.removeEventListener("resize", onResize);
       host.remove();
     },
   };
