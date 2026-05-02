@@ -8,9 +8,8 @@
 //   2. Live path — the panel was already open, so the background just
 //      broadcasts a FOCUS_WORD runtime message, which we handle as it arrives.
 //
-// The hook returns the currently-focused word_key and a `clear` callback so
-// the caller can reset focus once the row has been reached (e.g. user
-// scrolls away, or switches tab explicitly).
+// The hook returns the currently-focused word_key plus a monotonic tick that
+// lets consumers re-trigger scroll/expand even when the same key is set twice.
 
 import { useCallback, useEffect, useState } from "react";
 import { SESSION_KEY_PENDING_FOCUS } from "../shared/messages";
@@ -54,7 +53,5 @@ export function useFocusWord() {
     };
   }, [focus]);
 
-  const clear = useCallback(() => setFocusedKey(null), []);
-
-  return { focusedKey, focusTick: tick, clear };
+  return { focusedKey, focusTick: tick };
 }

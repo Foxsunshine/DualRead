@@ -11,7 +11,7 @@
 // runtime messages.
 
 import { DEFAULT_SETTINGS } from "../shared/types";
-import type { Settings, VocabWord, Lang } from "../shared/types";
+import type { Settings, VocabWord } from "../shared/types";
 import { STORAGE_PREFIX_VOCAB } from "../shared/messages";
 import { isHighlightable } from "../shared/highlightable";
 import { createHighlighter } from "./highlight";
@@ -19,22 +19,8 @@ import { snapOffsetsToWord } from "./wordBoundary";
 import { createBubble } from "./bubble";
 import { createClickTranslator } from "./clickTranslate";
 import { createFab } from "./fab";
-import type { FabStrings } from "./fab";
-
-// FAB labels kept inline instead of importing `DR_STRINGS`. The side panel
-// dict is ~70 keys and we only need two — copying here keeps the content
-// bundle lean and decoupled from panel copy churn.
-function fabStrings(lang: Lang): FabStrings {
-  return lang === "zh-CN"
-    ? {
-        onLabel: "学习模式：已开启（点击关闭）",
-        offLabel: "学习模式：已关闭（点击开启）",
-      }
-    : {
-        onLabel: "Learning mode: on (click to turn off)",
-        offLabel: "Learning mode: off (click to turn on)",
-      };
-}
+import { extractContext } from "./contextSentence";
+import { fabStrings } from "./i18n";
 
 // ───── Extension-context liveness ────────────────────────────
 // When the user reloads the extension (or Chrome silently updates it while
@@ -82,7 +68,7 @@ const onMouseUp = (): void => {
     const rawText = sel?.toString().trim() ?? "";
     if (!rawText || rawText.length < 2) return;
 
-    const context = extractContextSentence(sel);
+    const context = extractContext(sel?.anchorNode ?? null);
 
     // Drag-snap (v1.1 F1): locate the raw selection inside the block's
     // innerText and expand either endpoint that landed mid-word. If the
@@ -151,26 +137,6 @@ const onMouseUp = (): void => {
   }, 10);
 };
 document.addEventListener("mouseup", onMouseUp);
-
-// Walk up from the selection anchor to the nearest block element and return
-// its collapsed innerText, trimmed to 400 chars. Gives the side panel a useful
-// "in context" sentence without needing real sentence segmentation.
-function extractContextSentence(selection: Selection | null): string {
-  try {
-    const node = selection?.anchorNode ?? null;
-    const block =
-      node?.nodeType === Node.TEXT_NODE
-        ? (node.parentElement?.closest(
-            "p, li, h1, h2, h3, h4, h5, h6, blockquote, td, figcaption, div"
-          ) as HTMLElement | null)
-        : null;
-    const text = (block?.innerText || "").replace(/\s+/g, " ").trim();
-    if (!text) return "";
-    return text.length > 400 ? text.slice(0, 400) + "…" : text;
-  } catch {
-    return "";
-  }
-}
 
 // ───── Bubble + click-translate (v1.1) ───────────────────────
 // Bubble is a per-frame singleton and cheap to keep alive — it allocates

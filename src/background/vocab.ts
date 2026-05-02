@@ -171,7 +171,3 @@ export async function clearVocab(): Promise<void> {
   broadcastUpdated();
 }
 
-export async function getLastSyncedAt(): Promise<number | null> {
-  const res = await chrome.storage.local.get(LOCAL_KEY_LAST_SYNCED);
-  return (res[LOCAL_KEY_LAST_SYNCED] as number | undefined) ?? null;
-}

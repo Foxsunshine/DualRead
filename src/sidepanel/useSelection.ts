@@ -66,12 +66,14 @@ export function useSelection(target: "zh-CN" | "en" = "zh-CN") {
       const my = ++token;
       if (cancelled) return;
 
-      // Show the word + context immediately with a placeholder translation
-      // so the panel feels responsive while the network call is in flight.
+      // Show the word + context immediately while the network call is in
+      // flight. Translation field stays empty — App.translationText() reads
+      // `loading=true` and renders the localized "translating…" label, so
+      // any literal placeholder here would never reach the user.
       const { before, after, found } = splitContext(payload.context_sentence, payload.text);
       const placeholder: TranslateData = {
         word: payload.text,
-        translation: "…",
+        translation: "",
         contextBefore: found ? before : payload.context_sentence,
         contextAfter: found ? after : "",
         source: hostOf(payload.source_url),

@@ -282,23 +282,11 @@ button { font-family: inherit; }
   letter-spacing: -0.3px;
   color: var(--dr-ink);
 }
-.dr-translate__ipa {
-  font-size: 12px;
-  color: var(--dr-ink-muted);
-  margin-top: 4px;
-  font-family: var(--dr-font-mono);
-}
 .dr-translate__translation {
   font-size: 18px;
   font-weight: 500;
   color: var(--dr-ink);
   line-height: 1.4;
-}
-.dr-translate__translation-sub {
-  font-size: 13px;
-  color: var(--dr-ink-soft);
-  margin-top: 4px;
-  line-height: 1.5;
 }
 .dr-translate__context {
   padding: 12px 14px;

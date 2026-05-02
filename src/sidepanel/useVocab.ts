@@ -16,19 +16,13 @@ import { sendMessage } from "../shared/messages";
 import type { Message } from "../shared/messages";
 import type { VocabWord } from "../shared/types";
 
-interface State {
-  words: VocabWord[];
-  loaded: boolean;
-}
-
 export function useVocab() {
-  const [state, setState] = useState<State>({ words: [], loaded: false });
+  const [words, setWords] = useState<VocabWord[]>([]);
 
   const refresh = useCallback(async () => {
     const resp = await sendMessage({ type: "GET_VOCAB" });
     if (!resp.ok) return;
-    const words = (resp.data as VocabWord[] | undefined) ?? [];
-    setState({ words, loaded: true });
+    setWords((resp.data as VocabWord[] | undefined) ?? []);
   }, []);
 
   useEffect(() => {
@@ -44,15 +38,12 @@ export function useVocab() {
   // instant. The VOCAB_UPDATED that the background broadcasts after flushing
   // will pull in the canonical order anyway.
   const save = useCallback(async (word: VocabWord) => {
-    setState((s) => {
-      const others = s.words.filter((w) => w.word_key !== word.word_key);
-      return { ...s, words: [word, ...others] };
-    });
+    setWords((prev) => [word, ...prev.filter((w) => w.word_key !== word.word_key)]);
     await sendMessage({ type: "SAVE_WORD", word });
   }, []);
 
   const remove = useCallback(async (word_key: string) => {
-    setState((s) => ({ ...s, words: s.words.filter((w) => w.word_key !== word_key) }));
+    setWords((prev) => prev.filter((w) => w.word_key !== word_key));
     await sendMessage({ type: "DELETE_WORD", word_key });
   }, []);
 
@@ -60,11 +51,11 @@ export function useVocab() {
   // We reset local state first so the UI doesn't flash stale data between
   // the message round-trip.
   const clear = useCallback(async () => {
-    setState({ words: [], loaded: true });
+    setWords([]);
     await sendMessage({ type: "CLEAR_DATA" });
   }, []);
 
-  return { ...state, save, remove, clear, refresh };
+  return { words, save, remove, clear };
 }
 
 // Canonical dedup key: trimmed + lowercased. Must match the algorithm used

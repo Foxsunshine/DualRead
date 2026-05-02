@@ -24,6 +24,8 @@
 // `setVocab`, `setEnabled`, `setStyle`, and `dispose`. The orchestrator in
 // content/index.ts owns that instance and drives it from settings + vocab.
 
+import type { HighlightStyle } from "../shared/types";
+
 const HIGHLIGHT_CLASS = "dr-hl";
 const STYLE_ATTR = "data-dr-hl-style";
 
@@ -50,8 +52,6 @@ const EXCLUDED_TAGS = new Set<string>([
 
 const MO_DEBOUNCE_MS = 100;
 const REBUILD_THROTTLE_MS = 500;
-
-export type HighlightStyle = "underline" | "background";
 
 // v1.1: instead of sendMessage-ing OPEN_WORD when a highlight is clicked,
 // the module invokes this callback and lets the orchestrator decide what

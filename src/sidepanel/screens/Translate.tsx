@@ -3,9 +3,7 @@ import { MetaLabel } from "../components/MetaLabel";
 
 export interface TranslateData {
   word: string;
-  ipa?: string;
   translation: string;
-  translationSub?: string;
   contextBefore?: string;
   contextAfter?: string;
   contextSentence?: string;
@@ -27,7 +25,6 @@ export function Translate({ S, data, onSave, onAddNote }: Props) {
       <div className="dr-translate__block">
         <MetaLabel>{S.selectionLabel}</MetaLabel>
         <div className="dr-translate__word">{data.word}</div>
-        {data.ipa && <div className="dr-translate__ipa">{data.ipa}</div>}
       </div>
 
       <div className="dr-divider" />
@@ -35,9 +32,6 @@ export function Translate({ S, data, onSave, onAddNote }: Props) {
       <div className="dr-translate__block">
         <MetaLabel>{S.translationLabel}</MetaLabel>
         <div className="dr-translate__translation">{data.translation}</div>
-        {data.translationSub && (
-          <div className="dr-translate__translation-sub">{data.translationSub}</div>
-        )}
       </div>
 
       {(data.contextBefore || data.contextAfter || data.source) && (

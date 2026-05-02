@@ -31,9 +31,11 @@
 // round-trip, word A's late response must not repaint over B.
 
 import type { VocabWord, TranslateResult, Settings, Lang } from "../shared/types";
-import type { BubbleHandle, BubbleAnchor, BubbleStrings } from "./bubble";
+import type { BubbleHandle, BubbleAnchor } from "./bubble";
 import { sendMessage, STORAGE_PREFIX_VOCAB } from "../shared/messages";
 import { wordAtOffset } from "./wordBoundary";
+import { extractContext } from "./contextSentence";
+import { bubbleStrings, translateErrorMessage } from "./i18n";
 
 // ───── Constants ─────────────────────────────────────────────
 //
@@ -51,52 +53,6 @@ const INTERACTIVE_SELECTOR = "a,button,input,textarea,select,option";
 const CONTENTEDITABLE_SELECTOR =
   '[contenteditable], [contenteditable="true"], [contenteditable=""]';
 const HIGHLIGHT_SELECTOR = "span.dr-hl";
-
-// ───── i18n (bubble-local, minimal) ──────────────────────────
-//
-// Intentionally not importing `DR_STRINGS` from the side panel: that dict
-// is ~70 keys per locale and this module only needs 6. Copying them keeps
-// the content-script bundle lean and decouples bubble copy from the panel
-// screens' evolution.
-function bubbleStrings(lang: Lang): BubbleStrings {
-  return lang === "zh-CN"
-    ? { save: "保存", saved: "已保存", detail: "打开详情", close: "关闭", loading: "翻译中…", retry: "重试" }
-    : { save: "Save", saved: "Saved", detail: "View details", close: "Close", loading: "Translating…", retry: "Retry" };
-}
-
-function translateErrorMessage(code: string, lang: Lang): string {
-  if (code === "rate_limit") {
-    return lang === "zh-CN" ? "翻译服务暂时被限流，稍后重试。" : "Rate-limited, try again soon.";
-  }
-  if (code === "network") {
-    return lang === "zh-CN" ? "网络好像断了。" : "Network issue.";
-  }
-  return lang === "zh-CN" ? "翻译失败。" : "Translation failed.";
-}
-
-// ───── Context extraction ────────────────────────────────────
-//
-// Walk up from the clicked text node to the nearest block-level element
-// and take its innerText. Mirrors the selection-relay helper in
-// content/index.ts but takes a Node so it can be called from a caret
-// resolution result. Capped at 400 chars — long enough for a paragraph,
-// short enough to stay under the Chrome sendMessage 64 MB limit by a
-// comfortable margin.
-function extractContextForNode(node: Node | null): string {
-  try {
-    const parent =
-      node?.nodeType === Node.TEXT_NODE
-        ? (node.parentElement?.closest(
-            "p, li, h1, h2, h3, h4, h5, h6, blockquote, td, figcaption, div"
-          ) as HTMLElement | null)
-        : null;
-    const text = (parent?.innerText || "").replace(/\s+/g, " ").trim();
-    if (!text) return "";
-    return text.length > 400 ? text.slice(0, 400) + "…" : text;
-  } catch {
-    return "";
-  }
-}
 
 // ───── Saved-word lookup ─────────────────────────────────────
 //
@@ -354,7 +310,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     e.preventDefault();
     e.stopPropagation();
 
-    const context = extractContextForNode(resolved.textNode);
+    const context = extractContext(resolved.textNode);
     const click: CurrentClick = {
       token: ++currentToken,
       word: resolved.word,

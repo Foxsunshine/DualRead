@@ -24,7 +24,6 @@ interface Strings {
   sourceLabel: string;
   saveBtn: string;
   savedBtn: string;
-  goToPage: string;
   addNote: string;
   translatingLabel: string;
   poweredBy: string;
@@ -37,7 +36,6 @@ interface Strings {
   sortRecent: string;
   sortAlpha: string;
   export: string;
-  exportHint: string;
   delete: string;
   edit: string;
   noteField: string;
@@ -62,14 +60,12 @@ interface Strings {
   syncError: string;
   syncErrorDetail: (code: string) => string;
   syncedAt: (t: string) => string;
-  syncRetry: string;
   clearData: string;
   clearDataHint: string;
   // Contact block rendered near the bottom of Settings (above the danger zone).
   // Two rows: email (mailto:) + GitHub Issues (target=_blank). Title is the
   // only localized string — the address and URL are rendered verbatim.
   feedbackTitle: string;
-  savedToast: string;
   // Pause-state banner shown on the empty Translate screen when the FAB's
   // learning-mode switch is off. Side-panel flows still work — the banner
   // nudges the user toward the page-level toggle so they can resume.
@@ -103,7 +99,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sourceLabel: "来源",
     saveBtn: "保存到生词本",
     savedBtn: "已保存",
-    goToPage: "回到页面",
     addNote: "添加笔记",
     translatingLabel: "翻译中…",
     poweredBy: "Google 翻译",
@@ -116,7 +111,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortRecent: "最近添加",
     sortAlpha: "A → Z",
     export: "导出 CSV",
-    exportHint: "CSV 可导入 Anki 或任何表格工具",
     delete: "删除",
     edit: "编辑",
     noteField: "笔记",
@@ -141,11 +135,9 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncError: "同步出错",
     syncErrorDetail: (code) => `错误：${code}（正在重试）`,
     syncedAt: (t) => `最后同步 ${t}`,
-    syncRetry: "重试",
     clearData: "清除所有数据",
     clearDataHint: "删除所有保存的词和设置。此操作不可撤销。",
     feedbackTitle: "反馈 / Bug 报告",
-    savedToast: "已保存",
     learningModePausedTitle: "学习模式已暂停",
     learningModePausedBody: "网页上的点词翻译、划词翻译和高亮都已关闭。点击页面右下角的悬浮按钮即可重新开启。",
   },
@@ -174,7 +166,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sourceLabel: "Source",
     saveBtn: "Save to vocab",
     savedBtn: "Saved",
-    goToPage: "Go to page",
     addNote: "Add note",
     translatingLabel: "Translating…",
     poweredBy: "Google Translate",
@@ -187,7 +178,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortRecent: "Recent",
     sortAlpha: "A → Z",
     export: "Export CSV",
-    exportHint: "Import into Anki or any spreadsheet tool",
     delete: "Delete",
     edit: "Edit",
     noteField: "Note",
@@ -212,11 +202,9 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     syncError: "Sync error",
     syncErrorDetail: (code) => `Error: ${code} (retrying)`,
     syncedAt: (t) => `Last synced ${t}`,
-    syncRetry: "Retry",
     clearData: "Clear all data",
     clearDataHint: "Delete all saved words and settings. This cannot be undone.",
     feedbackTitle: "Feedback / Bug report",
-    savedToast: "Saved",
     learningModePausedTitle: "Learning mode paused",
     learningModePausedBody: "Click-to-translate, drag-to-translate, and page highlights are off. Click the floating button at the bottom-right of any page to turn them back on.",
   },
