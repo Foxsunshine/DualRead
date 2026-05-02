@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Strings } from "../i18n";
 import type { HighlightStyle, Settings as SettingsType } from "../../shared/types";
 import type { SyncState, SyncStatus } from "../useSyncStatus";
@@ -126,6 +127,16 @@ export function Settings({
         </ul>
       </div>
 
+      <div className="dr-settings__group">
+        <div className="dr-settings__group-title">{S.fabDisabledOriginsTitle}</div>
+        <div className="dr-settings__row-subtitle">{S.fabDisabledOriginsHint}</div>
+        <FabOriginsManager
+          S={S}
+          origins={settings.fab_disabled_origins}
+          onChange={(next) => onChange({ fab_disabled_origins: next })}
+        />
+      </div>
+
       <div className="dr-settings__spacer" />
 
       <div className="dr-danger">
@@ -213,6 +224,100 @@ function SyncIndicator({ S, status, syncedAtLabel, syncedCount }: SyncIndicatorP
         <div className="dr-sync__status">{primary}</div>
         <div className="dr-sync__detail">{detail}</div>
       </div>
+    </div>
+  );
+}
+
+// Canonicalize what the user typed into a `protocol//host` origin so the
+// content script's `location.origin === entry` check stays a plain string
+// compare. Returns null on parse failure or unsupported scheme — callers
+// surface the localized invalid-input message.
+function canonicalizeOrigin(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+interface FabOriginsManagerProps {
+  S: Strings;
+  origins: string[];
+  onChange: (next: string[]) => void;
+}
+
+function FabOriginsManager({ S, origins, onChange }: FabOriginsManagerProps) {
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function handleAdd(): void {
+    const canonical = canonicalizeOrigin(draft);
+    if (!canonical) {
+      setError(S.originInvalid);
+      return;
+    }
+    if (origins.includes(canonical)) {
+      setDraft("");
+      setError(null);
+      return;
+    }
+    onChange([...origins, canonical]);
+    setDraft("");
+    setError(null);
+  }
+
+  function handleRemove(target: string): void {
+    onChange(origins.filter((o) => o !== target));
+  }
+
+  return (
+    <div className="dr-fab-origins">
+      <ul className="dr-fab-origins__list">
+        {origins.length === 0 ? (
+          <li className="dr-fab-origins__empty">{S.fabDisabledOriginsEmpty}</li>
+        ) : (
+          origins.map((origin) => (
+            <li key={origin} className="dr-fab-origins__row">
+              <span className="dr-fab-origins__origin">{origin}</span>
+              <button
+                type="button"
+                className="dr-fab-origins__remove"
+                aria-label={S.removeOrigin}
+                onClick={() => handleRemove(origin)}
+              >
+                ×
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+      <form
+        className="dr-fab-origins__form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleAdd();
+        }}
+      >
+        <input
+          type="text"
+          inputMode="url"
+          className="dr-fab-origins__input"
+          placeholder={S.originPlaceholder}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            if (error) setError(null);
+          }}
+        />
+        <button type="submit" className="dr-fab-origins__add">
+          {S.addOrigin}
+        </button>
+      </form>
+      {error ? <div className="dr-fab-origins__error">{error}</div> : null}
     </div>
   );
 }

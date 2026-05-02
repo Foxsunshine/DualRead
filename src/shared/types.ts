@@ -17,6 +17,12 @@ export interface Settings {
   // banner). Default true — first-run users land in learning mode; the
   // floating FAB lets them toggle off any time without opening Settings.
   learning_mode_enabled: boolean;
+  // Origins where the FAB should not mount. Selection relay, highlights,
+  // and bubble translation remain active — only the floating switch is
+  // suppressed, for sites where the FAB clashes with host-page UI. Stored
+  // in canonical `protocol//host` form (no path, no trailing slash) so
+  // membership is a plain string compare against `location.origin`.
+  fab_disabled_origins: string[];
 }
 
 // Canonical default settings. Consumed by:
@@ -31,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ui_language: "zh-CN",
   first_run_completed: false,
   learning_mode_enabled: true,
+  fab_disabled_origins: [],
 };
 
 // Bumped to 2 in the schema-migration track: replaces the v1 `zh` / `en?`
