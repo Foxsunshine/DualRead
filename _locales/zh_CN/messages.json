@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "DualRead — 双语阅读划词翻译与生词高亮",
+    "description": "扩展名称"
+  },
+  "extDescription": {
+    "message": "划词即译，一键收藏生词，所有网页自动高亮已学单词。支持导出 CSV。无账号、无服务器。",
+    "description": "扩展简介（≤132 字符）"
+  }
+}

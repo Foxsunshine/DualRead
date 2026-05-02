@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "DualRead — Translate & Vocabulary Highlighter",
+    "description": "Extension name shown in Chrome Web Store and Chrome menus."
+  },
+  "extDescription": {
+    "message": "Select to translate, save vocabulary, and auto-highlight saved words on every page. Export to CSV. No accounts, no servers.",
+    "description": "Extension short description (≤132 chars) shown on Web Store listing."
+  }
+}
