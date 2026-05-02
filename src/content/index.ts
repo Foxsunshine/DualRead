@@ -19,6 +19,7 @@ import { snapOffsetsToWord } from "./wordBoundary";
 import { createBubble } from "./bubble";
 import { createClickTranslator } from "./clickTranslate";
 import { createFab } from "./fab";
+import { createToast } from "./toast";
 import { extractContext } from "./contextSentence";
 import { fabStrings } from "./i18n";
 
@@ -144,6 +145,7 @@ document.addEventListener("mouseup", onMouseUp);
 // dependency; the highlighter (below) routes saved-word clicks through
 // the same translator via `showSaved`, so both surfaces share one bubble.
 const bubble = createBubble();
+const toast = createToast();
 
 // Mutable reference so the storage listener can update settings in-place
 // and the click translator's `getSettings()` closure reads the current
@@ -152,6 +154,7 @@ let currentSettings: Settings = { ...DEFAULT_SETTINGS };
 
 const clickTranslator = createClickTranslator({
   bubble,
+  toast,
   getSettings: () => currentSettings,
 });
 
@@ -173,7 +176,10 @@ async function setLearningMode(enabled: boolean): Promise<void> {
     await chrome.storage.local.set({ settings: next });
     // Storage listener will pick this up and re-sync currentSettings /
     // highlighter / FAB visual — we don't double-apply here.
-    if (!enabled) bubble.hide();
+    if (!enabled) {
+      bubble.hide();
+      toast.hide();
+    }
   } catch {
     shutdownIfOrphaned();
   }
@@ -190,7 +196,23 @@ const highlighter = createHighlighter({
   onHighlightClick: ({ word_key, element }) => {
     void handleHighlightClick(word_key, element);
   },
+  onHighlightHover: ({ word_key, element, kind }) => {
+    if (kind === "enter") void handleHighlightHoverEnter(word_key, element);
+    else clickTranslator.hideHover();
+  },
 });
+
+function rectFromElement(element: HTMLElement) {
+  const box = element.getBoundingClientRect();
+  return {
+    top: box.top,
+    left: box.left,
+    right: box.right,
+    bottom: box.bottom,
+    width: box.width,
+    height: box.height,
+  };
+}
 
 async function handleHighlightClick(
   word_key: string,
@@ -204,16 +226,33 @@ async function handleHighlightClick(
     if (!saved) return;
     // Snapshot the rect *after* the storage round trip — element may have
     // been scrolled / reflowed by the host page between click and now.
-    const box = element.getBoundingClientRect();
     clickTranslator.showSaved({
-      anchor: {
-        top: box.top,
-        left: box.left,
-        right: box.right,
-        bottom: box.bottom,
-        width: box.width,
-        height: box.height,
-      },
+      anchor: rectFromElement(element),
+      saved,
+    });
+  } catch {
+    shutdownIfOrphaned();
+  }
+}
+
+// Hover-preview entry. Reads the saved record then opens a read-only
+// hoverPreview bubble. Skipped while learning mode is paused — the
+// content script should look fully dormant in that state. If the
+// storage read finishes after a click already promoted the surface,
+// the click translator's monotonic token guard drops the stale read.
+async function handleHighlightHoverEnter(
+  word_key: string,
+  element: HTMLElement
+): Promise<void> {
+  try {
+    if (!chrome.runtime?.id) return;
+    if (!currentSettings.learning_mode_enabled) return;
+    const key = `${STORAGE_PREFIX_VOCAB}${word_key}`;
+    const res = await chrome.storage.sync.get(key);
+    const saved = res[key] as VocabWord | undefined;
+    if (!saved) return;
+    clickTranslator.showHover({
+      anchor: rectFromElement(element),
       saved,
     });
   } catch {
@@ -324,6 +363,7 @@ async function init(): Promise<void> {
     }
     clickTranslator.dispose();
     bubble.dispose();
+    toast.dispose();
     highlighter.dispose();
     fab?.dispose();
     fab = null;

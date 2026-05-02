@@ -59,6 +59,16 @@ const REBUILD_THROTTLE_MS = 500;
 // rect for bubble anchoring without a second DOM walk.
 export interface HighlighterOptions {
   onHighlightClick?: (args: { word_key: string; element: HTMLElement }) => void;
+  // Mouse moved across the boundary of a `.dr-hl` span. `kind` flags
+  // entry vs leave so the orchestrator can mount or schedule-hide the
+  // hover-preview bubble. Detection accounts for nested DOM transitions
+  // inside the same span (so e.g. moving across a `<sup>` inside a
+  // wrapped word doesn't fire spurious enter/leave pairs).
+  onHighlightHover?: (args: {
+    word_key: string;
+    element: HTMLElement;
+    kind: "enter" | "leave";
+  }) => void;
 }
 
 export interface Highlighter {
@@ -202,7 +212,7 @@ function unwrapAll(root: ParentNode = document.body): void {
 }
 
 export function createHighlighter(options: HighlighterOptions = {}): Highlighter {
-  const { onHighlightClick } = options;
+  const { onHighlightClick, onHighlightHover } = options;
   let matcher: RegExp | null = null;
   let vocabKeys: string[] = [];
   let enabled = false;
@@ -240,6 +250,38 @@ export function createHighlighter(options: HighlighterOptions = {}): Highlighter
     e.preventDefault();
     e.stopPropagation();
     onHighlightClick?.({ word_key, element: hl });
+  };
+
+  // Hover delegation. mouseover / mouseout are used (not mouseenter /
+  // mouseleave) because the latter pair don't bubble and cannot be
+  // delegated from `document`. We dedupe spurious cross-child events
+  // by comparing the highlight ancestor of `target` against the
+  // highlight ancestor of `relatedTarget` — moving inside the same
+  // span is a no-op.
+  const onMouseOver = (e: MouseEvent): void => {
+    if (!onHighlightHover) return;
+    const target = e.target as Element | null;
+    const hl = target?.closest?.(`span.${HIGHLIGHT_CLASS}`) as HTMLElement | null;
+    if (!hl) return;
+    const related = e.relatedTarget as Element | null;
+    const relatedHl = related?.closest?.(`span.${HIGHLIGHT_CLASS}`);
+    if (relatedHl === hl) return;
+    const word_key = hl.dataset.word;
+    if (!word_key) return;
+    onHighlightHover({ word_key, element: hl, kind: "enter" });
+  };
+
+  const onMouseOut = (e: MouseEvent): void => {
+    if (!onHighlightHover) return;
+    const target = e.target as Element | null;
+    const hl = target?.closest?.(`span.${HIGHLIGHT_CLASS}`) as HTMLElement | null;
+    if (!hl) return;
+    const related = e.relatedTarget as Element | null;
+    const relatedHl = related?.closest?.(`span.${HIGHLIGHT_CLASS}`);
+    if (relatedHl === hl) return;
+    const word_key = hl.dataset.word;
+    if (!word_key) return;
+    onHighlightHover({ word_key, element: hl, kind: "leave" });
   };
 
   const scheduleMoFlush = (): void => {
@@ -342,6 +384,13 @@ export function createHighlighter(options: HighlighterOptions = {}): Highlighter
   // w.r.t. enable/disable — if we're disabled, there are no `.dr-hl` spans to
   // catch clicks on, so the handler naturally no-ops.
   document.addEventListener("click", onClick, { capture: true });
+  // Hover delegation gets installed unconditionally for the same
+  // reason: when no spans exist on the page, `closest('.dr-hl')`
+  // always returns null and the handler short-circuits.
+  if (onHighlightHover) {
+    document.addEventListener("mouseover", onMouseOver, { capture: true });
+    document.addEventListener("mouseout", onMouseOut, { capture: true });
+  }
 
   return {
     setVocab(keys: string[]): void {
@@ -375,6 +424,10 @@ export function createHighlighter(options: HighlighterOptions = {}): Highlighter
         rebuildTimer = null;
       }
       document.removeEventListener("click", onClick, { capture: true });
+      if (onHighlightHover) {
+        document.removeEventListener("mouseover", onMouseOver, { capture: true });
+        document.removeEventListener("mouseout", onMouseOut, { capture: true });
+      }
       // Intentionally do not unwrap — the content script is usually being
       // orphaned on extension update, and leaving spans in place is less
       // disruptive than a late DOM rewrite on a possibly-busy page.

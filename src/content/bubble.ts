@@ -24,7 +24,12 @@ import { bubbleCSS } from "./bubbleStyles";
 
 export type BubbleState =
   | { kind: "loading"; word: string }
-  | { kind: "translated"; word: string; translation: string; saved: boolean; note?: string; showDetailLink?: boolean }
+  | { kind: "translated"; word: string; translation: string; saved: boolean; note?: string; showDetailLink?: boolean; showDeleteButton?: boolean }
+  // Read-only hover preview. Triggered by mouseenter on a saved-vocab
+  // highlight; carries the cached zh and optional note. Has no action
+  // buttons — clicking the highlight promotes the bubble to the
+  // full `translated` saved variant via the click pipeline.
+  | { kind: "hoverPreview"; word: string; translation: string; note?: string }
   | { kind: "error"; word: string; message: string };
 
 // Anchor rect — caller provides the bounding box we should position next
@@ -43,6 +48,7 @@ export interface BubbleStrings {
   save: string;
   saved: string;
   detail: string;
+  delete: string;
   close: string;
   loading: string;
   retry: string;
@@ -55,7 +61,15 @@ export interface BubbleShowOptions {
   onSave?: () => void;
   onClose?: () => void;
   onDetail?: () => void;
+  onDelete?: () => void;
   onRetry?: () => void;
+  // Hover-preview plumbing. Caller passes these so the orchestrator
+  // can cancel a pending mouseleave-hide when the cursor moves from
+  // the highlight word into the bubble itself, or schedule one when
+  // the cursor leaves the bubble. Bubble fires them on its own host
+  // element; orchestrator owns the actual hide timer.
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export interface BubbleHandle {
@@ -136,6 +150,8 @@ export function createBubble(): BubbleHandle {
   // show() so old closures don't leak into the next bubble content — the
   // DOM nodes themselves are recreated per-show so listeners die with them.
   let currentOnClose: (() => void) | undefined;
+  let currentOnMouseEnter: (() => void) | undefined;
+  let currentOnMouseLeave: (() => void) | undefined;
 
   // ───── Dismissal plumbing ───────────────────────────────────
   //
@@ -176,6 +192,20 @@ export function createBubble(): BubbleHandle {
     // worse than a short user-visible dismissal. Caller can re-trigger.
     dismiss();
   };
+
+  // Hover transitions on the shadow host. We attach once in the
+  // factory and forward to the per-show callback (if any). Mouseleave
+  // and mouseenter (not mouseover/mouseout) suit our purpose: we only
+  // care about the bubble as a whole, and these events do not fire
+  // when moving between the host's internal nodes.
+  const onHostMouseEnter = (): void => {
+    currentOnMouseEnter?.();
+  };
+  const onHostMouseLeave = (): void => {
+    currentOnMouseLeave?.();
+  };
+  host.addEventListener("mouseenter", onHostMouseEnter);
+  host.addEventListener("mouseleave", onHostMouseLeave);
 
   function addGlobalListeners(): void {
     document.addEventListener("mousedown", onDocMouseDown, true);
@@ -232,10 +262,27 @@ export function createBubble(): BubbleHandle {
 
   function render(opts: BubbleShowOptions): void {
     clearRoot();
-    const { state, strings, onSave, onDetail, onRetry } = opts;
+    const { state, strings, onSave, onDetail, onDelete, onRetry } = opts;
 
     // Header row is shared across all states — word + close button.
     renderHeader(state.word, strings.close, () => dismiss());
+
+    if (state.kind === "hoverPreview") {
+      // Lightweight read-only preview — translation + optional note,
+      // no action row. Click on the highlight is what the user uses
+      // to enter the full saved bubble (Save/Delete/Detail surface).
+      const tr = document.createElement("div");
+      tr.className = "dr-bubble__translation";
+      tr.textContent = state.translation;
+      root.appendChild(tr);
+      if (state.note) {
+        const note = document.createElement("div");
+        note.className = "dr-bubble__note";
+        note.textContent = state.note;
+        root.appendChild(note);
+      }
+      return;
+    }
 
     if (state.kind === "loading") {
       const loading = document.createElement("div");
@@ -323,6 +370,30 @@ export function createBubble(): BubbleHandle {
       actions.appendChild(detail);
     }
 
+    if (state.showDeleteButton && onDelete) {
+      // Icon-only trash button. Sits next to the detail icon. Click
+      // is "soft delete" from the user's POV — orchestrator stashes
+      // the record and shows a 5s undo toast before the deletion is
+      // truly visible at storage scope.
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "dr-bubble__delete";
+      del.title = strings.delete;
+      del.setAttribute("aria-label", strings.delete);
+      del.innerHTML =
+        '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ' +
+        'stroke="currentColor" stroke-width="1.4" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M3 4.5h10"/>' +
+        '<path d="M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5"/>' +
+        '<path d="M4.5 4.5v8a1.5 1.5 0 0 0 1.5 1.5h4a1.5 1.5 0 0 0 1.5-1.5v-8"/>' +
+        '<path d="M7 7v5"/>' +
+        '<path d="M9 7v5"/>' +
+        "</svg>";
+      del.addEventListener("click", onDelete);
+      actions.appendChild(del);
+    }
+
     root.appendChild(actions);
   }
 
@@ -332,6 +403,8 @@ export function createBubble(): BubbleHandle {
     if (disposed) return;
 
     currentOnClose = opts.onClose;
+    currentOnMouseEnter = opts.onMouseEnter;
+    currentOnMouseLeave = opts.onMouseLeave;
     render(opts);
 
     if (!host.isConnected) {
@@ -367,6 +440,8 @@ export function createBubble(): BubbleHandle {
     open = false;
     removeGlobalListeners();
     currentOnClose = undefined;
+    currentOnMouseEnter = undefined;
+    currentOnMouseLeave = undefined;
     if (host.isConnected) host.remove();
     clearRoot();
   }
@@ -375,6 +450,8 @@ export function createBubble(): BubbleHandle {
     if (disposed) return;
     disposed = true;
     hide();
+    host.removeEventListener("mouseenter", onHostMouseEnter);
+    host.removeEventListener("mouseleave", onHostMouseLeave);
   }
 
   return {
