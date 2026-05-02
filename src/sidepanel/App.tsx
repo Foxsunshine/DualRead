@@ -167,6 +167,8 @@ export function App() {
         return (
           <Welcome
             S={S}
+            currentLang={settings.ui_language}
+            onPickLang={(lang) => update({ ui_language: lang })}
             onStart={() => {
               update({ first_run_completed: true });
               setScreen("translate-empty");
