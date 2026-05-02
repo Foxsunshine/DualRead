@@ -1,176 +1,109 @@
-# DualRead — Working Notes for Claude
+<!-- # CLAUDE.md
 
-## Commenting policy (project override)
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Write comments. The user wants code documented, not minimal.
+## 这个目录是什么
 
-- **Every non-trivial function gets a short header comment** explaining its purpose and anything non-obvious about its contract (ownership, side effects, error modes, timing).
-- **Explain the *why*, not the *what*.** Don't narrate syntax. Do call out:
-  - hidden invariants or ordering requirements
-  - Chrome API quirks (storage quotas, service-worker eviction, CSP, user-gesture rules)
-  - why an edge case is handled the way it is
-  - rollback / retry logic intent
-- **Section banners** (`// ───── Name ─────`) are welcome in longer files to aid navigation.
-- **Don't reference the current PR, ticket, or task** — those belong in commit messages.
-- Keep comments in English for now; UI strings are localized separately via `src/sidepanel/i18n.ts`.
-
-This overrides the default "no comments" stance. Apply it consistently going forward and when touching existing code.
-
-## Tech stack ground rules
-
-- TypeScript 5.7 strict, React 19, Vite 6 + `@crxjs/vite-plugin`
-- Native CSS with CSS variables in `src/sidepanel/styles.css`; design tokens mirrored in `src/sidepanel/tokens.ts`
-- Chrome MV3 — background is a module service worker; expect eviction
-- Runtime i18n via `DR_STRINGS` dict, not `chrome.i18n` (v1)
-- Node pinned to 20 via `.nvmrc`
-
-## Storage layers
-
-- `chrome.storage.sync` — vocab (per-word keys `v:<word_key>`); cross-device
-- `chrome.storage.local` — settings, write buffer (`write_buffer`), `last_synced_at`
-- `chrome.storage.session` — translation cache, latest selection (clears on restart)
-
-## Message flow
-
-All cross-context communication goes through `src/shared/messages.ts`. Discriminated `Message` union; responses are `{ ok: true, data? } | { ok: false, error }`.
-
-## Build & verify
-
-The user's machine only has Node 20 installed — don't prepend `nvm use 20`
-(or `source ~/.nvm/nvm.sh`) to build/test commands; just run them directly.
-
-```sh
-npm run typecheck   # tsc -b --noEmit
-npm run build       # tsc -b && vite build
-npm test            # vitest run
-```
-
-## Commit policy
-
-The user's past commits (`☘️: vibe coding : xxx`) are deliberately being
-retired — from now on you are expected to create **real, structured git
-commits on the user's behalf at meaningful checkpoints**, without being
-asked every single time. The user has pre-authorized commits *within the
-scope rules below*; you still never push, never amend published commits,
-never `git reset --hard`, never `--no-verify`.
-
-### When to commit (proactively, without asking)
-
-Commit as soon as **all** of these are true for a coherent unit of work:
-
-1. The work is a single identifiable concern — a feature, a bugfix, a
-   refactor, a doc update, a brainstorm landing. Not "everything I
-   touched today."
-2. `npm run typecheck` passes **and** `npm test` passes (skip `npm run
-   build` unless the change could break the bundle; always run it for
-   manifest / vite / @crxjs changes).
-3. The working tree after the commit would be a clean, rollback-able
-   state — not "half of F3 done."
-4. You are **not** in the middle of a multi-step user dialogue where
-   another turn is imminent (e.g. mid-brainstorming clarification — let
-   the user confirm the direction first).
-
-Natural checkpoints that should auto-commit:
-- A brainstorm document reaches §7 / §8 Implementation notes status
-- A DL-N decision is implemented end-to-end (tests + docs synced)
-- A bugfix lands with its regression test and bug doc
-- A CLAUDE.md / DESIGN.md / brainstorm-md update stands on its own
-
-If a single user request produced **multiple independent concerns** (e.g.
-a feature + an unrelated bug found along the way), split into **two
-commits** — do not bundle.
-
-### When NOT to commit
-
-- You're about to ask the user a question — they might redirect you
-- Mid-way through a multi-file change where the intermediate state
-  doesn't typecheck or breaks a test
-- Exploratory edits / experiments you're not sure will survive
-- Anything involving credentials, `.env`, new large binaries, or files
-  outside the repo's normal scope
-
-### Message format (strict)
-
-Drop the `☘️: vibe coding :` prefix. Use Conventional-Commit–flavored
-one-liner subject + short body. Keep it in English.
+`~/Desktop/dev/` 是 **DualRead 项目的 workspace 根目录**。**2026-04-28
+之后**，这里只有一个 active repo：
 
 ```
-<type>(<scope>): <imperative subject, ≤70 chars>
-
-<optional 2–5 line body explaining the *why*, not the *what*.
-Reference DL / D / R IDs where they exist (DL-4, D62, R8) so the
-commit threads into the design docs. No PR / issue numbers yet —
-this is a solo project.>
+dev/
+├── DualRead/                              # Chrome 扩展（唯一 active repo，PUBLIC）
+└── _archived/
+    └── DualRead-backend-v3.1/             # v3.1 FastAPI 后端，已废弃，保留 git 历史
 ```
 
-**Types we use:**
+接到任务时，**默认 `cd DualRead/` 再操作**。除非显式说"看一下存档里
+怎么写的"，否则不要动 `_archived/` 下的内容。
 
-| type | use for |
-|---|---|
-| `feat` | new user-visible behavior |
-| `fix` | bug fix with a reproducer or known failure mode |
-| `refactor` | code restructure, no behavior change |
-| `perf` | measurable performance improvement |
-| `test` | tests only |
-| `docs` | markdown / comments only |
-| `chore` | deps, config, build plumbing |
-| `style` | formatting only (rare — we don't use a formatter) |
+## 项目目标 —— 已校正
 
-**Scopes we use** (pick the narrowest that fits; multi-scope → pick the
-most load-bearing):
+**2026-04-28 决策修正**：项目从 portfolio 驱动**回归实用性驱动**。
 
-`content`, `sidepanel`, `background`, `shared`, `bubble`, `hover`,
-`toast`, `highlight`, `manifest`, `docs`, `brainstorm`, `cws`,
-`tests`, `build`.
+之前的 v3.1 规划（FastAPI 后端 + Postgres + pgvector RAG + LangGraph
+3-node agent + Langfuse + BLEU/LLM-judge eval + 3 repo 拆分 + 4 层
+secret 防御）**整体废弃**。原因：重新审视后，这些组件对"划词翻译 +
+生词本"的核心场景不是必需，更多是在为简历叙事加重量。
 
-**Good examples** (project-specific):
+新方向：
 
-```
-feat(bubble): add trash icon + 5s undo toast (DL D58)
+- **产品边界**：划词翻译 + 生词本，仅此
+- **默认停留在 Tier 0**：只有 Chrome 扩展，BYOK（用户自带 API key），
+  无后端
+- **Tier 1（轻量翻译代理）**：仅当上架 CWS 且 BYOK 劝退太多用户时触发，
+  实装用 Cloudflare Workers / Vercel Edge 免费层，**不**用
+  Railway + FastAPI + Postgres
+- **Tier 2（用户存储）**：仅当 `chrome.storage.sync` 配额真的爆了时触发
 
-Silent delete with viewport-centered toast, reusing the same snapshot
-strategy as saved-toast. DELETE_WORD path unchanged; undo re-issues
-SAVE_WORD with the original created_at / note.
-```
+详见 `DualRead/docs/v2-x-utility-scope.md`（**当前权威范围文档**）。
 
-```
-fix(content): reject clicks that caretRangeFromPoint snaps to offset 0
+如果用户的 prompt 里出现 "RAG / agent / 后端 / eval pipeline / Langfuse /
+4 语矩阵" 等 v3.1 概念，先反问：是想恢复 v3.1 方向，还是在新的实用性
+范围内重新理解需求？
 
-caretRangeFromPoint is a nearest-caret API, not a hit-test. Clicks in
-a block's left padding were snapping to textNode[0] and firing the
-first word. Verify the click actually lands in the word's client rect
-before committing. Bug doc: docs/bugs/bug-2026-04-24-*.md.
-```
+## 架构 source of truth
 
-```
-docs(brainstorm): lock v2.1.1 (F1–F5) Understanding + DL-1..5
-```
+- **`DualRead/docs/v2-x-utility-scope.md`** —— 当前权威范围定义
+  （边界、Tier 触发条件、已废弃方向清单）
+- **`DualRead/CLAUDE.md`** —— 扩展 repo 的工作守则（注释政策、构建
+  命令、commit 格式）
+- **`DualRead/docs/v3-1-architecture.md`** —— **SUPERSEDED**，仅作
+  历史决策记录保留，不再用于指导实装
 
-```
-refactor(clickTranslate): extract paintSavedBubble shared by click + hover
-```
+## Toolchain
 
-**Bad examples** (do not emit):
+- 机器只装了 **Node 20**。直接 `npm run …` 跑——**不要**前缀
+  `nvm use 20` 或 `source ~/.nvm/nvm.sh`
+- 不再有 Python 后端。如果未来 Tier 1 触发，新栈是 TypeScript on
+  Cloudflare Workers / Vercel Edge
 
-- `update stuff` — no type, no scope, no why
-- `feat: various improvements` — vague scope, vague subject
-- `☘️ vibe coding : phase X` — the retired style
-- `fix: WIP` — WIP does not land on main
+## Secret 卫生
 
-### Mechanics
+简化版（v3.1 的 4 层防御已废弃，只保留真正有用的两层）：
 
-- Use `git add <specific paths>` — never `git add .` or `git add -A`.
-  The user's `.gitignore` is good but a stray `dist/` or `.env` that
-  slips in is a real risk.
-- Hand-write the message via `git commit -m "$(cat <<'EOF' … EOF)"`
-  so multi-line bodies format correctly.
-- Include the Co-Authored-By trailer per the global protocol.
-- **Do not push.** Pushing is a separate user-initiated action.
-- After the commit, run `git status` to confirm a clean tree.
+1. `.gitignore` 覆盖 `.env*`、`node_modules/`、`dist/`、构建产物
+2. `gitleaks` pre-commit hook（`brew install gitleaks` 已装）
 
-### When unsure, ask — once
+GitHub 端的 Secret Scanning + Push Protection 是顺手开下就有的免费服务，
+开了更好但不是项目工程。`env.example` 模板矩阵不再需要——Tier 0 没有
+任何服务端 env 要管。
 
-If a given checkpoint is ambiguous (e.g. "is this one concern or two?",
-"should this commit include the unrelated README tweak I also made?"),
-ask the user **one** quick question before committing. Don't wait for
-every commit — only the ambiguous ones.
+## Memory 位置
+
+`~/.claude/projects/-Users-enari-Desktop-dev-DualRead/memory/`（2026-04-29
+统一到 DualRead-scoped slug）。新 session 起来后先读 `MEMORY.md` 索引。
+
+**这意味着：**
+- 在 `~/Desktop/dev/DualRead/` 启动 session → 自动读到这套 memory ✅
+- 在 `~/Desktop/dev/` 启动 session（workspace 级）→ **读不到 memory**，
+  系统派生的 slug 是 `-Users-enari-Desktop-dev/` 而那里现在是空的 ❌
+  **解决办法**：尽量在 `DualRead/` 内启动 session；workspace 根级
+  cd 主要给跨 repo 操作用，scope reset 后已无跨 repo 工作
+
+旧的 v3.1 / Phase 0-5 相关 memory 已在 2026-04-29 整理时全部删除；当前
+8 条 memory 全部 active，零过时标记。
+
+## Skill 使用规则（重要）
+
+**接到任务的第一件事是判断有没有对应的 skill，有就先 `Skill` 工具
+调用，再开始干活。** 不要凭手感直接 Edit / Bash 处理本应走 skill 的
+请求。
+
+常见的命中关系（不完全列表）：
+
+- 用户问"加 hook / 改 hook / 改 settings.json / 加 permission / 设
+  环境变量 / 通知响铃配置 / 让 Claude 自动做 X" → `update-config`
+- 用户问"改快捷键 / 重绑 key / chord 绑定" → `keybindings-help`
+- 用户问"每周/每天/隔几分钟跑一次 / 定时检查 / 循环跑 X" → `schedule`
+  或 `loop`（一次性定时用 `schedule`，循环短间隔用 `loop`）
+- 用户问"减少权限弹窗 / 把常用命令加白名单" → `fewer-permission-prompts`
+- 用户问"简化这段代码 / 这段太啰嗦" → `simplify`
+
+判断流程：
+1. 读用户的请求 → 看 system reminder 里 available-skills 列表 → 有命中
+   就 `Skill` 调用
+2. 没把握时，宁可问一句"我用 `xxx` skill 处理这个吗？"也别越过 skill
+   自己干
+3. **`update-config` 是最容易漏的**（任何涉及 `~/.claude/settings.json`
+   或项目级 `.claude/settings.json` 的改动都该走它），优先注意 -->

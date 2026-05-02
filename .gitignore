@@ -5,16 +5,3 @@ node_modules/
 dist/
 *.local
 .vite/
-*.tsbuildinfo
-.claude/settings.local.json
-
-# Secrets — defense layer 1 of ADR-A21. Belt-and-braces with `*.local`
-# above; `.env` (no suffix) is what most tooling uses by default and
-# `*.local` does NOT match it.
-.env
-.env.*
-!.env.example
-
-# Python build artifacts (this repo is TS but architecture/runbook docs
-# may include local Python snippets; keep the noise out of git either way)
-__pycache__/

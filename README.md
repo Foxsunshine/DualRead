@@ -2,17 +2,6 @@
 
 A Chrome side-panel extension for Chinese speakers learning English. Save unknown words as you browse, and watch them auto-highlight every time they appear on any page.
 
-> **Repo layout** — DualRead is split across three repos as of v3.1
-> ([ADR-A20](docs/v3-1-architecture.md)):
->
-> - **`Foxsunshine/DualRead`** (this repo, public) — Chrome MV3 extension
-> - **`Foxsunshine/DualRead-web`** (public) — Next.js Landing + Admin (Phase 5+)
-> - **`Foxsunshine/DualRead-backend`** (private) — FastAPI backend, prompts, eval
->
-> Code is **read** from all three; **secrets never** — see
-> `.pre-commit-config.yaml` and `docs/runbooks/key-leak.md` (in the
-> backend repo) for the secret-defense layers per ADR-A21.
-
 ## How it works
 
 1. **Select** any English text on any webpage — the side panel shows a Chinese translation, the surrounding sentence, and where you found it.
@@ -41,12 +30,6 @@ npm run build        # production build → dist/
 ```
 
 Live-reload: `npm run dev` keeps a watcher running. Side-panel changes hot-reload automatically; content-script or background changes require the extension's reload button at `chrome://extensions`.
-
-### Dev: end-to-end sign-in
-
-Phase 1 W4 wires the extension's "Sign in with Google" button (Settings → Account) to a local FastAPI backend. The full step-by-step is in the backend repo: [`DualRead-backend/docs/runbooks/dev-login.md`](../DualRead-backend/docs/runbooks/dev-login.md). First-time setup (~15 min) includes creating a Chrome Extension OAuth client in the GCP Console; subsequent runs are just `docker compose up && uvicorn`.
-
-Pre-CWS this flow is dev-only — CWS-published builds still surface as the v2.x local-only experience until the backend ships to Railway and the manifest's host_permissions are pointed at the prod URL (Phase 1 W5).
 
 ## Tech stack
 
@@ -87,7 +70,7 @@ Full design rationale and decision log: see [`DESIGN.md`](./DESIGN.md).
 **v2.0.0 submitted to the Chrome Web Store on 2026-04-22 — awaiting review.**
 
 - v1 (Phases 0 → 4): TS/React migration, side-panel shell, vocab storage + CSV export, highlight engine with click-to-focus, first-run polish, sync-status indicator, initial store submission.
-- v2.0 (v1.1 iteration, Phases A → I): translator moved to the background service worker, word-boundary snapping for drag selection, in-page Shadow-DOM translation bubble (click + drag parity), auto-switch to Translate tab on any fresh selection, floating learning-mode on/off button on every page, refreshed brand icon. Full design summary in [`DESIGN.md`](DESIGN.md) Appendix B (the long-form v1.1 brainstorm was archived in the 2026-04-25 docs cleanup; recover via git history if needed).
+- v2.0 (v1.1 iteration, Phases A → I): translator moved to the background service worker, word-boundary snapping for drag selection, in-page Shadow-DOM translation bubble (click + drag parity), auto-switch to Translate tab on any fresh selection, floating learning-mode on/off button on every page, refreshed brand icon. Full design + decisions in [`docs/v1-1-feedback.md`](docs/v1-1-feedback.md) and [`DESIGN.md`](DESIGN.md) Appendix B.
 
 ## License
 

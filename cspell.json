@@ -12,8 +12,6 @@
     "dualread",
     "corasick",
     "preact",
-    "esbuild",
-    "Fraunces",
-    "opsz"
+    "esbuild"
   ]
 }
