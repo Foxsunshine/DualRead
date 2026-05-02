@@ -43,6 +43,29 @@ class TranslateError extends Error {
   }
 }
 
+// ───── Detected-language normalisation ──────────────────────
+// Google Translate's `detectedLang` field returns BCP-47-ish codes that are
+// inconsistent in form: `"zh-CN"` for one request, `"zh"` or `"zh-Hans"` for
+// another, `"en-US"` vs `"en"`. The bubble's alreadyInLang notice compares
+// against our four-language `Lang` union, so we collapse the variants here.
+// Returning `null` for anything we can't classify is deliberate — false
+// negatives just skip the notice; false positives would silently hide a
+// legitimate translation. When in doubt, translate.
+function normalizeDetectedLang(raw: string | undefined | null): Lang | null {
+  if (!raw) return null;
+  const primary = raw.toLowerCase().split("-")[0];
+  // We intentionally collapse all `zh-*` (zh, zh-CN, zh-Hans, zh-TW, zh-HK)
+  // to our single `zh-CN` slot. v1.x supports only Simplified as a target,
+  // and a Traditional-Chinese page selected by a Simplified-target user is
+  // close enough that the alreadyInLang notice still makes sense — the user
+  // can press "translate anyway" if they really want a Simplified rewrite.
+  if (primary === "zh") return "zh-CN";
+  if (primary === "ja") return "ja";
+  if (primary === "fr") return "fr";
+  if (primary === "en") return "en";
+  return null;
+}
+
 // ───── Session cache ─────────────────────────────────────────
 // Cache keys are prefixed with `t:` so they don't collide with the selection
 // relay's `latest_selection` / `pending_focus_word` keys already living in
@@ -50,21 +73,33 @@ class TranslateError extends Error {
 // can resolve to different translations depending on direction (CN→EN vs
 // EN→CN). Lowercase + trim matches how `word_key` is canonicalised elsewhere
 // in the app so a repeat lookup from a slightly differently-cased selection
-// still hits the cache.
+// still hits the cache. `force` deliberately does *not* participate: the
+// cached payload only carries the deterministic `{translated, detectedLang}`
+// pair, and the orthogonal `alreadyInLang` flag is recomputed on every read
+// so the same cached entry can produce different UI decisions depending on
+// whether the caller asked to bypass the notice.
 function cacheKey(text: string, target: string): string {
   return `t:${target}:${text.trim().toLowerCase()}`;
 }
 
-async function getCached(text: string, target: string): Promise<TranslateResult | null> {
+// Stored cache payload — strictly the deterministic translator output.
+// `alreadyInLang` is intentionally absent so a stale cache entry written
+// before a direction change can't poison the bubble's UI decision.
+interface CachedTranslation {
+  translated: string;
+  detectedLang: string;
+}
+
+async function getCached(text: string, target: string): Promise<CachedTranslation | null> {
   const key = cacheKey(text, target);
   const res = await chrome.storage.session.get(key);
-  return (res[key] as TranslateResult | undefined) ?? null;
+  return (res[key] as CachedTranslation | undefined) ?? null;
 }
 
 async function setCached(
   text: string,
   target: string,
-  result: TranslateResult
+  result: CachedTranslation
 ): Promise<void> {
   await chrome.storage.session.set({ [cacheKey(text, target)]: result });
 }
@@ -80,7 +115,7 @@ async function translateWithGoogle(
   text: string,
   target: Lang,
   source: Lang | "auto"
-): Promise<TranslateResult> {
+): Promise<CachedTranslation> {
   const url =
     `https://translate.googleapis.com/translate_a/single` +
     `?client=gtx&sl=${source}&tl=${target}&dt=t&q=${encodeURIComponent(text)}`;
@@ -121,16 +156,37 @@ async function translateWithGoogle(
 export async function handleTranslate(
   text: string,
   target: Lang,
-  source: Lang | "auto" = "auto"
+  source: Lang | "auto" = "auto",
+  force: boolean = false
 ): Promise<MessageResponse> {
   try {
     const cached = await getCached(text, target);
-    if (cached) return { ok: true, data: cached };
-    const data = await translateWithGoogle(text, target, source);
-    await setCached(text, target, data);
-    return { ok: true, data };
+    const data = cached ?? (await translateWithGoogle(text, target, source));
+    if (!cached) await setCached(text, target, data);
+    const result: TranslateResult = {
+      ...data,
+      alreadyInLang: computeAlreadyInLang(data.detectedLang, target, force),
+    };
+    return { ok: true, data: result };
   } catch (e) {
     const code = e instanceof TranslateError ? e.code : "parse";
     return { ok: false, error: code };
   }
+}
+
+// Pure helper so the bubble UI decision is testable without the network /
+// cache machinery: the caller passes in the raw detected code, the
+// requested target, and whether the user explicitly asked to bypass the
+// notice. `force === true` always wins — once the user clicks "translate
+// anyway" we never want the bubble to bounce back to the notice on the
+// same text.
+function computeAlreadyInLang(
+  detectedRaw: string,
+  target: Lang,
+  force: boolean
+): boolean {
+  if (force) return false;
+  const normalized = normalizeDetectedLang(detectedRaw);
+  if (normalized === null) return false;
+  return normalized === target;
 }

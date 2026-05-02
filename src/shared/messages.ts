@@ -18,6 +18,12 @@ export type Message =
       target?: Lang;
       source?: Lang;
       requester?: "sidepanel" | "bubble";
+      // When true, bypass the alreadyInLang heuristic: the response will
+      // come back with `alreadyInLang === false` even if the detected
+      // source language matches the target. The bubble's "translate
+      // anyway" button sets this so the user can force a translation
+      // round-trip after dismissing the alreadyInLang notice.
+      force?: boolean;
     }
   | ({ type: "SELECTION_CHANGED" } & SelectionPayload)
   | ({ type: "SHOW_SELECTION" } & SelectionPayload)

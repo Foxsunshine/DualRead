@@ -87,4 +87,11 @@ export interface SelectionPayload {
 export interface TranslateResult {
   translated: string;
   detectedLang: string;
+  // True when the source text's detected language already matches the
+  // requested target — i.e. translating it would produce roughly the same
+  // output. The bubble surfaces this as an "already in {lang}" notice with
+  // a "translate anyway" override; the side panel ignores it for now.
+  // Derived per-call from `detectedLang` and the request's `target`/`force`,
+  // so the value is *not* persisted in the session-translation cache.
+  alreadyInLang?: boolean;
 }
