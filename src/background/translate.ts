@@ -24,7 +24,7 @@
 // bubble (Phase C) will do the same.
 
 import type { MessageResponse } from "../shared/messages";
-import type { TranslateResult } from "../shared/types";
+import type { Lang, TranslateResult } from "../shared/types";
 
 // Template-literal type for HTTP errors lets us surface the actual status
 // ("http_503", "http_418") in logs and bug reports without inventing one
@@ -78,11 +78,12 @@ async function setCached(
 // field).
 async function translateWithGoogle(
   text: string,
-  target: "zh-CN" | "en"
+  target: Lang,
+  source: Lang | "auto"
 ): Promise<TranslateResult> {
   const url =
     `https://translate.googleapis.com/translate_a/single` +
-    `?client=gtx&sl=auto&tl=${target}&dt=t&q=${encodeURIComponent(text)}`;
+    `?client=gtx&sl=${source}&tl=${target}&dt=t&q=${encodeURIComponent(text)}`;
 
   let resp: Response;
   try {
@@ -119,12 +120,13 @@ async function translateWithGoogle(
 // is not worth the complexity at v1.1's scale.
 export async function handleTranslate(
   text: string,
-  target: "zh-CN" | "en"
+  target: Lang,
+  source: Lang | "auto" = "auto"
 ): Promise<MessageResponse> {
   try {
     const cached = await getCached(text, target);
     if (cached) return { ok: true, data: cached };
-    const data = await translateWithGoogle(text, target);
+    const data = await translateWithGoogle(text, target, source);
     await setCached(text, target, data);
     return { ok: true, data };
   } catch (e) {

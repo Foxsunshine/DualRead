@@ -48,6 +48,15 @@ interface Strings {
   en: string;
   ja: string;
   fr: string;
+  // Translation-direction picker (Settings §5). Title sits above two
+  // language dropdowns separated by an arrow; the caption is a function so
+  // each UI language can pick its own clause order around the source/target
+  // display names.
+  directionTitle: string;
+  directionFromLabel: string;
+  directionToLabel: string;
+  directionCaption: (source: string, target: string) => string;
+  directionSameLangHint: string;
   syncStatus: string;
   synced: string;
   syncing: string;
@@ -130,6 +139,12 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
+    directionTitle: "翻译方向",
+    directionFromLabel: "源语言",
+    directionToLabel: "目标语言",
+    directionCaption: (source, target) =>
+      `划词翻译会从 ${source} 翻到 ${target}。识别为 ${target} 的文本会跳过翻译。`,
+    directionSameLangHint: "请选择两种不同的语言。",
     syncStatus: "同步状态",
     synced: "已同步",
     syncing: "正在同步…",
@@ -201,6 +216,12 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
+    directionTitle: "Translation direction",
+    directionFromLabel: "From",
+    directionToLabel: "To",
+    directionCaption: (source, target) =>
+      `Selection translation goes from ${source} to ${target}. Text already detected as ${target} will be skipped.`,
+    directionSameLangHint: "Pick two different languages.",
     syncStatus: "Sync status",
     synced: "Synced",
     syncing: "Syncing…",
@@ -272,6 +293,12 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
+    directionTitle: "翻訳方向",
+    directionFromLabel: "翻訳元",
+    directionToLabel: "翻訳先",
+    directionCaption: (source, target) =>
+      `選択範囲を ${source} から ${target} に翻訳します。${target} と判定されたテキストは翻訳をスキップします。`,
+    directionSameLangHint: "異なる 2 つの言語を選択してください。",
     syncStatus: "同期ステータス",
     synced: "同期済み",
     syncing: "同期中…",
@@ -343,6 +370,12 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
+    directionTitle: "Sens de traduction",
+    directionFromLabel: "De",
+    directionToLabel: "Vers",
+    directionCaption: (source, target) =>
+      `La sélection est traduite du ${source} vers le ${target}. Les textes détectés comme étant en ${target} ne sont pas traduits.`,
+    directionSameLangHint: "Choisissez deux langues différentes.",
     syncStatus: "État de la synchronisation",
     synced: "Synchronisé",
     syncing: "Synchronisation…",

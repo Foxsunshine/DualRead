@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 import { SESSION_KEY_LATEST_SELECTION, sendMessage } from "../shared/messages";
 import type { Message } from "../shared/messages";
-import type { SelectionPayload, TranslateResult } from "../shared/types";
+import type { Lang, SelectionPayload, TranslateResult } from "../shared/types";
 import type { TranslateData } from "./screens/Translate";
 
 export type TranslateErrorCode = "rate_limit" | "network" | "generic";
@@ -53,7 +53,7 @@ function splitContext(ctx: string, needle: string): { before: string; after: str
   return { before: ctx.slice(0, i), after: ctx.slice(i + needle.length), found: true };
 }
 
-export function useSelection(target: "zh-CN" | "en" = "zh-CN") {
+export function useSelection(target: Lang = "zh-CN", source: Lang = "en") {
   const [state, setState] = useState<State>({ data: null, loading: false, error: null });
 
   useEffect(() => {
@@ -86,6 +86,7 @@ export function useSelection(target: "zh-CN" | "en" = "zh-CN") {
         type: "TRANSLATE_REQUEST",
         text: payload.text,
         target,
+        source,
         requester: "sidepanel",
       });
       if (cancelled || my !== token) return;
@@ -129,7 +130,7 @@ export function useSelection(target: "zh-CN" | "en" = "zh-CN") {
       cancelled = true;
       chrome.runtime.onMessage.removeListener(listener);
     };
-  }, [target]);
+  }, [target, source]);
 
   return state;
 }

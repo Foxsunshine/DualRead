@@ -1,4 +1,4 @@
-import type { SelectionPayload, TranslateResult, VocabWord } from "./types";
+import type { Lang, SelectionPayload, TranslateResult, VocabWord } from "./types";
 
 export type Message =
   // v1.1 rename: `TRANSLATE` → `TRANSLATE_REQUEST`. The old name predated the
@@ -6,10 +6,17 @@ export type Message =
   // one-entry RPC that either surface can fire. `requester` is optional
   // metadata used only for logs/telemetry (if we ever add telemetry) — the
   // response contract is identical regardless of caller.
+  //
+  // `target` is optional: callers may pass it explicitly (sidepanel/bubble
+  // pulled from Settings.translation_direction) or omit it and let the
+  // background fall back to the persisted direction. Both paths converge on
+  // the same source of truth so a missed read on the caller side cannot
+  // produce a translation that disagrees with the user's Settings choice.
   | {
       type: "TRANSLATE_REQUEST";
       text: string;
-      target?: "zh-CN" | "en";
+      target?: Lang;
+      source?: Lang;
       requester?: "sidepanel" | "bubble";
     }
   | ({ type: "SELECTION_CHANGED" } & SelectionPayload)
