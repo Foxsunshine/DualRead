@@ -234,6 +234,30 @@ button { font-family: inherit; }
 }
 .dr-welcome__spacer { flex: 1; }
 
+/* Compact layout for short viewports (e.g. 800×500 popup-style sizes).
+ * The spacer becomes a fixed gap so the primary CTA stays above the fold
+ * and the whole screen fits without a vertical scrollbar. Padding, copy,
+ * and level buttons all tighten in lockstep. */
+@media (max-height: 600px) {
+  .dr-welcome { padding: 16px 24px 16px; }
+  .dr-welcome__logo { margin-bottom: 10px; }
+  .dr-welcome__hello { font-size: 13px; margin-bottom: 4px; }
+  .dr-welcome__heading {
+    font-size: 22px;
+    line-height: 1.15;
+    margin-bottom: 8px;
+  }
+  .dr-welcome__body {
+    font-size: 13px;
+    line-height: 1.45;
+    margin-bottom: 12px;
+  }
+  .dr-welcome__level-group { margin-bottom: 12px; }
+  .dr-welcome__level-prompt { margin-bottom: 6px; }
+  .dr-level { padding: 7px 10px; font-size: 12px; }
+  .dr-welcome__spacer { flex: 0 0 6px; }
+}
+
 /* ───── Translate — empty ───── */
 .dr-translate-empty {
   flex: 1;
