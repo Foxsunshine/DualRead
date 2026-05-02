@@ -11,6 +11,11 @@ interface Strings {
   welcomeBody: string;
   welcomeCta: string;
   welcomeSkip: string;
+  // Welcome-screen language picker (§6). Renders above the CTA. The hint
+  // line explains that the picked language drives both the UI and the
+  // default translation target so the user knows a single click sets both.
+  pickLanguageHeading: string;
+  pickLanguageHint: string;
   selectPrompt: string;
   selectHint: string;
   selectionLabel: string;
@@ -102,6 +107,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "在任何网页上选中一个不认识的词，DualRead 会把它翻译给你，再帮你把它保存到生词本。之后这个词每次出现，都会被轻轻标出来，让你重新认识它。",
     welcomeCta: "开始使用",
     welcomeSkip: "先看看设置",
+    pickLanguageHeading: "选择你的母语",
+    pickLanguageHint: "我们会用这门语言显示界面，并把生词翻译成它。",
     selectPrompt: "在任意网页选中一段英文，这里会显示翻译。",
     selectHint: "试试回到网页，划一下你不认识的词。",
     selectionLabel: "选中的内容",
@@ -179,6 +186,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "Select any word you don't know on any webpage. DualRead translates it and saves it for you. Next time it appears anywhere online, it'll be gently marked so you can recognize it again.",
     welcomeCta: "Get started",
     welcomeSkip: "See settings first",
+    pickLanguageHeading: "Choose your language",
+    pickLanguageHint: "We'll use it for the interface and translate words into it.",
     selectPrompt: "Select some English on any page — the translation will appear here.",
     selectHint: "Go back to the page and try selecting a word.",
     selectionLabel: "Selection",
@@ -256,6 +265,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "どんなウェブページでも、知らない単語を選択するだけで DualRead が翻訳し、単語帳に保存します。次にその単語がどこかに現れたら、そっとマークしてあなたに知らせます。",
     welcomeCta: "はじめる",
     welcomeSkip: "先に設定を見る",
+    pickLanguageHeading: "言語を選んでください",
+    pickLanguageHint: "選んだ言語で UI を表示し、単語の翻訳先にも使います。",
     selectPrompt: "任意のページで英文を選択すると、ここに翻訳が表示されます。",
     selectHint: "ページに戻って、知らない単語を選択してみてください。",
     selectionLabel: "選択範囲",
@@ -333,6 +344,8 @@ export const DR_STRINGS: Record<Lang, Strings> = {
       "Sélectionnez n'importe quel mot inconnu sur n'importe quelle page web. DualRead le traduit et l'enregistre pour vous. La prochaine fois qu'il apparaîtra en ligne, il sera discrètement signalé pour vous aider à le reconnaître.",
     welcomeCta: "Commencer",
     welcomeSkip: "Voir d'abord les paramètres",
+    pickLanguageHeading: "Choisissez votre langue",
+    pickLanguageHint: "Elle sera utilisée pour l'interface et comme langue cible des traductions.",
     selectPrompt: "Sélectionnez un texte anglais sur n'importe quelle page — la traduction apparaîtra ici.",
     selectHint: "Retournez sur la page et essayez de sélectionner un mot.",
     selectionLabel: "Sélection",

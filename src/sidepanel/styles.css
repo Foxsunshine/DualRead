@@ -224,10 +224,66 @@ button { font-family: inherit; }
 }
 .dr-welcome__spacer { flex: 1; }
 
+/* Mother-tongue picker. 2×2 grid keeps each card wide enough for "简体中文"
+ * and "Français" to render without truncation at the panel's narrowest
+ * width (~360px). The grid sits between the body copy and the CTA; the
+ * spacer above absorbs any leftover vertical room on tall viewports. */
+.dr-welcome__pick-lang {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.dr-welcome__pick-lang-prompt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dr-ink);
+}
+.dr-welcome__pick-lang-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.dr-welcome__pick-lang-hint {
+  font-size: 12px;
+  color: var(--dr-ink-muted);
+  line-height: 1.45;
+}
+.dr-pick-lang {
+  padding: 12px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--dr-ink);
+  background: var(--dr-bg-raised);
+  border: 1px solid var(--dr-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.dr-pick-lang:hover {
+  border-color: var(--dr-accent);
+}
+.dr-pick-lang--active {
+  border-color: var(--dr-accent);
+  background: var(--dr-accent-soft);
+  color: var(--dr-accent-ink);
+  font-weight: 600;
+}
+
+/* Disabled CTA: visually muted while the user has not yet confirmed a
+ * language. Keeps the layout stable (same height/weight as the active
+ * state) so the click target doesn't jump when it enables. */
+.dr-btn--primary:disabled {
+  background: var(--dr-ink-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Compact layout for short viewports (e.g. 800×500 popup-style sizes).
  * The spacer becomes a fixed gap so the primary CTA stays above the fold
- * and the whole screen fits without a vertical scrollbar. Padding, copy,
- * and level buttons all tighten in lockstep. */
+ * and the whole screen fits without a vertical scrollbar. Padding, body
+ * copy, and the language grid all tighten in lockstep. */
 @media (max-height: 600px) {
   .dr-welcome { padding: 16px 24px 16px; }
   .dr-welcome__logo { margin-bottom: 10px; }
@@ -240,11 +296,11 @@ button { font-family: inherit; }
   .dr-welcome__body {
     font-size: 13px;
     line-height: 1.45;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
-  .dr-welcome__level-group { margin-bottom: 12px; }
-  .dr-welcome__level-prompt { margin-bottom: 6px; }
-  .dr-level { padding: 7px 10px; font-size: 12px; }
+  .dr-welcome__pick-lang { gap: 6px; margin-bottom: 10px; }
+  .dr-welcome__pick-lang-hint { font-size: 11px; line-height: 1.35; }
+  .dr-pick-lang { padding: 8px 10px; font-size: 13px; }
   .dr-welcome__spacer { flex: 0 0 6px; }
 }
 
