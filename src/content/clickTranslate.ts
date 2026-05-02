@@ -255,11 +255,12 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
     const vw: VocabWord = {
       word: click.word,
       word_key,
-      zh: translation,
+      translation,
       ctx: click.context || undefined,
       source_url: location.href,
       created_at: now,
       updated_at: now,
+      schema_version: 2,
     };
     try {
       if (!chrome.runtime?.id) return;
@@ -374,7 +375,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       state: {
         kind: "translated",
         word: click.word,
-        translation: saved.zh || "—",
+        translation: saved.translation || "—",
         saved: true,
         note: saved.note,
         showDetailLink: true,

@@ -18,9 +18,10 @@ import {
   SESSION_KEY_PENDING_FOCUS,
 } from "../shared/messages";
 import { DEFAULT_SETTINGS } from "../shared/types";
-import type { SelectionPayload } from "../shared/types";
-import { clearVocab, deleteWord, getVocab, saveWord } from "./vocab";
+import type { SelectionPayload, VocabWord } from "../shared/types";
+import { clearVocab, deleteWord, flushPending, getVocab, saveWord } from "./vocab";
 import { handleTranslate } from "./translate";
+import { runMigration } from "./migrate";
 
 chrome.runtime.onInstalled.addListener(async () => {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -29,6 +30,43 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (!settings) {
     await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });
   }
+});
+
+// migrationReady gates every write path so SAVE / DELETE / CLEAR can never
+// race against an in-flight upgrade pass. TRANSLATE_REQUEST is deliberately
+// not awaited — it doesn't touch vocab storage and the user-facing latency
+// for a cold-start translation already includes a network round-trip; adding
+// a migration await would block the bubble for no correctness gain.
+//
+// init() is invoked at module top-level so the listener registration below
+// fires synchronously on SW wake; the first write message that lands during
+// migration suspends on `await migrationReady` and resumes once the pass
+// settles. If init() throws (e.g. storage corruption), migrationReady
+// rejects and writers surface a structured error to the side panel rather
+// than corrupting storage further.
+let migrationReady: Promise<void>;
+
+function init(): Promise<void> {
+  return runMigration({
+    readLocal: (keys) => chrome.storage.local.get(keys),
+    writeLocal: (entries) => chrome.storage.local.set(entries),
+    removeLocal: (keys) => chrome.storage.local.remove(keys),
+    readAllSync: () => chrome.storage.sync.get(null) as Promise<Record<string, unknown>>,
+    writeSync: (entries: Record<string, VocabWord>) => chrome.storage.sync.set(entries),
+    removeSync: (keys) => chrome.storage.sync.remove(keys),
+    defaultSettings: DEFAULT_SETTINGS,
+    now: () => Date.now(),
+  });
+}
+
+migrationReady = init();
+
+// Best-effort: drain pending writes before the SW is suspended. If this
+// races with the suspension window the next cold start re-hydrates from the
+// write_buffer mirror, so this handler is an optimisation, not a correctness
+// requirement.
+chrome.runtime.onSuspend.addListener(() => {
+  void flushPending();
 });
 
 // Translation moved to ./translate.ts in v1.1 Phase A. The router below
@@ -128,24 +166,44 @@ chrome.runtime.onMessage.addListener(
         return false;
 
       case "SAVE_WORD":
-        respondWith(saveWord(msg.word), sendResponse);
+        respondWith(
+          (async () => {
+            await migrationReady;
+            return saveWord(msg.word);
+          })(),
+          sendResponse
+        );
         return true;
 
       case "DELETE_WORD":
-        respondWith(deleteWord(msg.word_key), sendResponse);
+        respondWith(
+          (async () => {
+            await migrationReady;
+            return deleteWord(msg.word_key);
+          })(),
+          sendResponse
+        );
         return true;
 
       case "GET_VOCAB":
-        respondWith(getVocab(), sendResponse);
+        // Reads also wait so the panel never sees a half-migrated snapshot.
+        respondWith(
+          (async () => {
+            await migrationReady;
+            return getVocab();
+          })(),
+          sendResponse
+        );
         return true;
 
       case "CLEAR_DATA":
         // Order matters: wipe vocab (clears write buffer + sync), then local
-        // (settings + last_synced_at), then session (translation cache), and
-        // only after everything is gone do we re-seed default settings so
-        // the panel reloads into a clean first-run-completed state.
+        // (settings + last_synced_at + schema_version), then session
+        // (translation cache), then re-seed default settings so the panel
+        // reloads into a clean first-run-completed state.
         respondWith(
           (async () => {
+            await migrationReady;
             await clearVocab();
             await chrome.storage.local.clear();
             await chrome.storage.session.clear();

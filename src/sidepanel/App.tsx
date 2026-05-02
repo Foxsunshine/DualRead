@@ -127,12 +127,13 @@ export function App() {
     const word: VocabWord = {
       word: selection.data.word,
       word_key: currentKey,
-      zh: selection.data.translation,
+      translation: selection.data.translation,
       ctx: selection.data.contextSentence,
       source_url: selection.data.sourceUrl,
       note: existing?.note,
       created_at: existing?.created_at ?? now,
       updated_at: now,
+      schema_version: 2,
     };
     await vocab.save(word);
   };

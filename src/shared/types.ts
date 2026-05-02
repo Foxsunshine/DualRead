@@ -33,16 +33,25 @@ export const DEFAULT_SETTINGS: Settings = {
   learning_mode_enabled: true,
 };
 
+// Bumped to 2 in the schema-migration track: replaces the v1 `zh` / `en?`
+// pair with a single `translation` field plus optional source/target language
+// metadata. The literal type on `schema_version` makes any future bump a
+// compile-time error wherever VocabWord literals are constructed, forcing the
+// next bump to walk the call sites instead of silently accepting v2 records.
+export const CURRENT_SCHEMA_VERSION = 2 as const;
+
 export interface VocabWord {
   word: string;
   word_key: string;
-  zh: string;
-  en?: string;
+  translation: string;
+  source_lang?: Lang;
+  target_lang?: Lang;
   ctx?: string;
   source_url?: string;
   note?: string;
   created_at: number;
   updated_at: number;
+  schema_version: 2;
 }
 
 export interface SelectionPayload {

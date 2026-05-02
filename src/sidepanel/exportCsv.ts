@@ -15,15 +15,29 @@ function esc(v: string | number | undefined): string {
 }
 
 export function toCsv(words: VocabWord[]): string {
-  const header = ["word", "translation", "context", "note", "source_url", "created_at"];
+  // source_lang / target_lang appended after created_at: keeping the original
+  // six columns in their existing order means user-built Anki templates
+  // continue to address the same column indices.
+  const header = [
+    "word",
+    "translation",
+    "context",
+    "note",
+    "source_url",
+    "created_at",
+    "source_lang",
+    "target_lang",
+  ];
   const rows = words.map((w) =>
     [
       esc(w.word),
-      esc(w.zh),
+      esc(w.translation),
       esc(w.ctx),
       esc(w.note),
       esc(w.source_url),
       esc(new Date(w.created_at).toISOString()),
+      esc(w.source_lang),
+      esc(w.target_lang),
     ].join(",")
   );
   // CRLF line terminator per RFC 4180. Excel is the pickiest consumer here.
@@ -34,7 +48,7 @@ export async function exportVocabCsv(words: VocabWord[]): Promise<void> {
   const csv = toCsv(words);
   // BOM prefix so Excel auto-detects UTF-8 and renders Chinese translations
   // correctly; without it, Excel on Windows falls back to the system codepage
-  // and mojibakes the `zh` column.
+  // and mojibakes the translation column.
   const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const stamp = new Date().toISOString().slice(0, 10);

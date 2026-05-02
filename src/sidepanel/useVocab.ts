@@ -12,9 +12,21 @@
 // lives in `useSyncStatus` — keep this hook focused on the word list alone.
 
 import { useCallback, useEffect, useState } from "react";
-import { sendMessage } from "../shared/messages";
+import { sendMessage, SYNC_VALUE_MAX_BYTES } from "../shared/messages";
 import type { Message } from "../shared/messages";
+import { estimateRecordBytes } from "../shared/migration";
 import type { VocabWord } from "../shared/types";
+
+export class VocabRecordTooLargeError extends Error {
+  readonly bytes: number;
+  readonly limit: number;
+  constructor(bytes: number) {
+    super(`Vocab record is ${bytes} bytes, exceeds ${SYNC_VALUE_MAX_BYTES}-byte sync cap`);
+    this.name = "VocabRecordTooLargeError";
+    this.bytes = bytes;
+    this.limit = SYNC_VALUE_MAX_BYTES;
+  }
+}
 
 export function useVocab() {
   const [words, setWords] = useState<VocabWord[]>([]);
@@ -36,8 +48,12 @@ export function useVocab() {
 
   // Optimistic upsert: put the word at the top immediately so the UI feels
   // instant. The VOCAB_UPDATED that the background broadcasts after flushing
-  // will pull in the canonical order anyway.
+  // will pull in the canonical order anyway. The size check throws so the
+  // caller can surface a toast; a silent bounce at flush time would leave
+  // the panel showing a "saved" word that was never persisted.
   const save = useCallback(async (word: VocabWord) => {
+    const bytes = estimateRecordBytes(word);
+    if (bytes > SYNC_VALUE_MAX_BYTES) throw new VocabRecordTooLargeError(bytes);
     setWords((prev) => [word, ...prev.filter((w) => w.word_key !== word.word_key)]);
     await sendMessage({ type: "SAVE_WORD", word });
   }, []);
