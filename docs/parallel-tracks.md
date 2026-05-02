@@ -145,14 +145,13 @@
 
 ### 轨道 E — 长期 backlog（§8，可选，不阻塞任何发版）
 
-E1+E2 同人（共改 `content/fab.ts`），E3 单人。
+E1、E3 各一人。
 
 - **E1 Per-domain FAB 隐藏**：`shared/types.ts` Settings 加 `fab_disabled_origins: string[]`、`content/fab.ts` 读取并隐藏、Settings UI 加管理面板
-- **E2 可拖动 FAB 位置**：`content/fab.ts` 加 pointer 事件 + `local["fab_position"]` 持久化
 - **E3 Welcome 视口 < 600px 不滚动**：`sidepanel/screens/Welcome.tsx` + `styles.css` 媒体查询调整
 
 **owner 文件**：
-- E1+E2：`src/content/fab.ts`、`src/shared/types.ts`（Settings 加字段）、`src/sidepanel/screens/Settings.tsx`（管理面板）
+- E1：`src/content/fab.ts`、`src/shared/types.ts`（Settings 加字段）、`src/sidepanel/screens/Settings.tsx`（管理面板）
 - E3：`src/sidepanel/screens/Welcome.tsx`、`src/sidepanel/styles.css`
 
 **碰撞控制**：E1 与 C 都改 Settings 与 types，建议 E1 排在 C 之后再开工；E3 与所有轨道无碰撞。
@@ -167,7 +166,7 @@ E1+E2 同人（共改 `content/fab.ts`），E3 单人。
 2. **C 后合并**：C 在 B 已合的基础上扩 Lang、删 Level、收 CSP、加字体；rebase 时面对的是 B 已稳定的 types.ts，冲突仅限 import 顺序
 3. **A 跟 C 同 PR 或紧随合并**：A 阶段 1（hover/delete/toast）可与 C 并行开发；A 阶段 2（4 语字典扩张）必须 C 合并后追加；A 与 C 共属 §4 原子包，发版同一 release
 4. **D 在 §4 上线稳定后**单独走 CWS 上传（吸收 7–21 天审核）
-5. **E 任意时机插入**：E1 排在 C 之后；E2/E3 任意
+5. **E 任意时机插入**：E1 排在 C 之后；E3 任意
 
 ---
 
@@ -180,7 +179,7 @@ E1+E2 同人（共改 `content/fab.ts`），E3 单人。
 | 待 B + (A+C) 上线 | §5 Direction Settings | 一个新 agent 开工 |
 | 待 §5 上线 | §1 alreadyInLang + §6 Welcome 重做 | §1 与 §6 各自一个 agent；§6 两项必须同 PR |
 | §4 稳定后 | **D 上传 CWS** | 独立窗口 |
-| 任意 | **E1+E2**（C 后） / **E3**（任意） | 不阻塞 |
+| 任意 | **E1**（C 后） / **E3**（任意） | 不阻塞 |
 
 ---
 
@@ -212,7 +211,7 @@ E1+E2 同人（共改 `content/fab.ts`），E3 单人。
 - CWS 开发者后台上传 zip，dashboard 看到 4 语元数据正确显示
 - 不同浏览器语言访问商店页验证 fallback 链路
 
-**轨道 E**：按各子项 acceptance 验证（per-domain 隐藏在指定域生效；FAB 拖动后位置持久化跨刷新；Welcome 在 800×500 视口无滚动条）
+**轨道 E**：按各子项 acceptance 验证（per-domain 隐藏在指定域生效；Welcome 在 800×500 视口无滚动条）
 
 ---
 

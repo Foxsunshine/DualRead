@@ -717,7 +717,7 @@ v1.1 spec; this appendix is a pointer and change summary only.
 
 **Deferred to v1.2**
 - Jump-from-vocab-list-to-source-URL (user request F4, non-urgent)
-- Per-domain FAB hide; draggable FAB position
+- Per-domain FAB hide
 - Playwright-extension e2e test setup
 
 **Cross-reference table**
