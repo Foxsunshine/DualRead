@@ -16,7 +16,7 @@
 </head>
 <body>
   <h1>DualRead — Privacy Policy</h1>
-  <p class="updated">Last updated: April 26, 2026 (v2.0.1)</p>
+  <p class="updated">Last updated: May 3, 2026 (v2.1.0)</p>
 
   <h2>Overview</h2>
   <p>DualRead ("the Extension") is a Chrome browser extension for Chinese speakers learning English. It lets you look up and save unknown English words while browsing, shows a translation bubble next to the word you click or select, and gently highlights your saved words on pages you visit afterwards. This policy explains what data the Extension handles and where it goes.</p>
@@ -28,7 +28,8 @@
   <p>All data the Extension uses is stored locally in your browser via the standard Chrome Extension storage APIs:</p>
   <ul>
     <li><strong>Saved vocabulary</strong> — the English words you explicitly save, their translations, the sentence you saw them in, and the source URL. Stored in <code>chrome.storage.sync</code>, which Chrome transparently syncs across the browsers you are signed into with the same Google account.</li>
-    <li><strong>Settings</strong> — highlight style, UI language, auto-highlight toggle, your English-level choice. Stored in <code>chrome.storage.local</code> (device-local only).</li>
+    <li><strong>Settings</strong> — highlight style, UI language, auto-highlight toggle, the learning-mode master switch (the floating button's on/off state), and the list of origins on which you have chosen to hide the floating learning-mode button. Stored in <code>chrome.storage.local</code> (device-local only).</li>
+    <li><strong>Onboarding state</strong> — a small flag recording that you have completed the first-run welcome flow and your chosen interface language, so the welcome screen is not shown again. Stored in <code>chrome.storage.local</code>.</li>
     <li><strong>Translation cache</strong> — recent translations kept briefly so repeated lookups don't re-hit the network. Stored in <code>chrome.storage.session</code> and cleared when your browser restarts.</li>
     <li><strong>Write buffer and sync status metadata</strong> — small internal bookkeeping so the Extension survives service-worker eviction and can show you whether your last save succeeded. Stored in <code>chrome.storage.local</code>.</li>
   </ul>
