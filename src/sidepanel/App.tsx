@@ -8,7 +8,7 @@
 //     behavior (don't yank the user away from Vocab) turned out to be a
 //     complaint, not a feature. Users expect a new lookup to land where
 //     the result actually is.
-//   - Wiring Save / Edit note / Delete / Export / Clear to the vocab hook.
+//   - Wiring Save / Delete / Export / Clear to the vocab hook.
 
 import { useEffect, useMemo, useState } from "react";
 import { DR_STRINGS } from "./i18n";
@@ -58,21 +58,19 @@ export function App() {
   const { settings, loaded, update } = useSettings();
   const [screen, setScreen] = useState<Screen | null>(null);
   const vocab = useVocab();
-  const selection = useSelection(
-    settings.translation_direction.target,
-    settings.translation_direction.source
-  );
+  const selection = useSelection(settings.ui_language);
   const focus = useFocusWord();
   const syncStatus = useSyncStatus();
 
   // D43 (supersedes D21): a fresh selection always pulls the user to the
-  // Translate tab, no matter where they were. v1's "sticky intent" check
-  // (don't yank users off Vocab) was a pain point — users expected a new
-  // lookup to surface its own result, not sit silently behind another tab.
+  // Translate tab, no matter where they were. The dependency is the
+  // hook's `epoch` counter — bumped only on a new SHOW_SELECTION push or
+  // initial session restore — so retranslation triggered by switching the
+  // UI language does not yank the user off Settings/Vocab.
   useEffect(() => {
-    if (!selection.data) return;
+    if (selection.epoch === 0) return;
     setScreen("translate");
-  }, [selection.data]);
+  }, [selection.epoch]);
 
   // FOCUS_WORD_IN_VOCAB intent — the user clicked "打开详情" in the bubble
   // (Phase E) or clicked a highlight in the v1 flow. Jump to the Vocab tab
@@ -121,8 +119,11 @@ export function App() {
   const isSaved = !!currentKey && vocab.words.some((w) => w.word_key === currentKey);
 
   // Build a VocabWord from the current translation and hand it off.
-  // If the word is already saved we preserve `created_at` + any existing note —
+  // If the word is already saved we preserve `created_at` —
   // Save on an already-saved word acts as "refresh translation/context".
+  // source_lang stays undefined (Google detects the source per request);
+  // target_lang follows the UI language so existing CSV exports keep a
+  // populated target column.
   const handleSaveCurrent = async () => {
     if (!selection.data || !currentKey) return;
     const now = Date.now();
@@ -131,24 +132,15 @@ export function App() {
       word: selection.data.word,
       word_key: currentKey,
       translation: selection.data.translation,
-      source_lang: existing?.source_lang ?? settings.translation_direction.source,
-      target_lang: existing?.target_lang ?? settings.translation_direction.target,
+      source_lang: existing?.source_lang,
+      target_lang: existing?.target_lang ?? settings.ui_language,
       ctx: selection.data.contextSentence,
       source_url: selection.data.sourceUrl,
-      note: existing?.note,
       created_at: existing?.created_at ?? now,
       updated_at: now,
       schema_version: 2,
     };
     await vocab.save(word);
-  };
-
-  // Notes are persisted by re-saving the whole word with a bumped updated_at;
-  // the write buffer coalesces bursts so rapid edits collapse into one sync write.
-  const handleSaveNote = async (word_key: string, note: string) => {
-    const existing = vocab.words.find((w) => w.word_key === word_key);
-    if (!existing) return;
-    await vocab.save({ ...existing, note: note.trim() || undefined, updated_at: Date.now() });
   };
 
   const handleExport = async () => {
@@ -203,11 +195,6 @@ export function App() {
               if (selection.loading || selection.error) return;
               void handleSaveCurrent();
             }}
-            onAddNote={() => {
-              // "Add note" is a shortcut to the Vocab tab where inline
-              // editing lives; no separate modal in v1.
-              setScreen("vocab");
-            }}
           />
         );
       case "vocab-empty":
@@ -221,7 +208,6 @@ export function App() {
             focusedKey={focus.focusedKey}
             focusTick={focus.focusTick}
             onExport={() => void handleExport()}
-            onSaveNote={(key, note) => void handleSaveNote(key, note)}
             onDelete={(w) => void vocab.remove(w.word_key)}
           />
         );

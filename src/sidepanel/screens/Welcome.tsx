@@ -27,10 +27,8 @@ interface Props {
   // so a Japanese-locale user lands with 日本語 already highlighted.
   currentLang: Lang;
   // Fired when the user clicks any language card. Updates the persisted
-  // ui_language; the auto-follow rule in applySettingsPatch carries the
-  // translation_direction target along while direction_user_overridden=false
-  // (always the case on first run — the latch can only flip from the Settings
-  // direction picker, which is unreachable until the user clears Welcome).
+  // ui_language; translation target follows ui_language directly, so the
+  // single click sets both interface and translation language at once.
   onPickLang: (lang: Lang) => void;
   onStart: () => void;
   onSkipToSettings: () => void;

@@ -7,11 +7,10 @@ export type Message =
   // metadata used only for logs/telemetry (if we ever add telemetry) — the
   // response contract is identical regardless of caller.
   //
-  // `target` is optional: callers may pass it explicitly (sidepanel/bubble
-  // pulled from Settings.translation_direction) or omit it and let the
-  // background fall back to the persisted direction. Both paths converge on
-  // the same source of truth so a missed read on the caller side cannot
-  // produce a translation that disagrees with the user's Settings choice.
+  // `target` is optional: callers usually pass it explicitly (the side
+  // panel's ui_language) but may omit it and let the background fall back
+  // to the persisted ui_language. `source` is also optional and defaults
+  // to "auto" — Google Translate auto-detects the input language.
   | {
       type: "TRANSLATE_REQUEST";
       text: string;

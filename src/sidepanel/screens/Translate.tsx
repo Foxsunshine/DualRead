@@ -16,10 +16,9 @@ interface Props {
   S: Strings;
   data: TranslateData;
   onSave: () => void;
-  onAddNote: () => void;
 }
 
-export function Translate({ S, data, onSave, onAddNote }: Props) {
+export function Translate({ S, data, onSave }: Props) {
   return (
     <section className="dr-screen dr-translate">
       <div className="dr-translate__block">
@@ -69,11 +68,6 @@ export function Translate({ S, data, onSave, onAddNote }: Props) {
           </svg>
           <span className="dr-btn__label dr-btn__label--save">{S.saveBtn}</span>
           <span className="dr-btn__label dr-btn__label--saved">{S.savedBtn}</span>
-        </button>
-        <button type="button" className="dr-btn dr-btn--icon" title={S.addNote} onClick={onAddNote}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M2 11L11 2l1.5 1.5L3.5 12.5 2 13v-2z" />
-          </svg>
         </button>
       </div>
       <div className="dr-translate__powered">{S.poweredBy}</div>

@@ -62,8 +62,9 @@ export function bubbleCSS(): string {
 }
 
 .dr-bubble__word {
-  font-weight: 600;
-  color: ${DR_TOKENS.ink};
+  font-weight: 400;
+  font-size: 12px;
+  color: ${DR_TOKENS.inkSoft};
   word-break: break-word;
   flex: 1;
   min-width: 0;
@@ -94,16 +95,9 @@ export function bubbleCSS(): string {
 
 .dr-bubble__translation {
   margin-top: 4px;
-  color: ${DR_TOKENS.inkSoft};
-  word-break: break-word;
-}
-
-.dr-bubble__note {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px dashed ${DR_TOKENS.borderSoft};
-  color: ${DR_TOKENS.inkSoft};
-  font-size: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: ${DR_TOKENS.ink};
   word-break: break-word;
 }
 
@@ -139,37 +133,9 @@ export function bubbleCSS(): string {
   color: ${DR_TOKENS.sage};
 }
 
-/* Detail button in the saved-word variant: icon-only, replaces the old
-   text link. Sized ~28×28 (16px glyph + 6px padding each side) so it sits
-   a hair taller than the Save/Saved button but with align-items: center
-   on the actions row the mismatch is visually absorbed. Hover gives a
-   soft background chip so it reads as "clickable" without needing a border. */
-.dr-bubble__detail {
-  all: unset;
-  cursor: pointer;
-  flex: 0 0 auto;
-  box-sizing: border-box;
-  padding: 6px;
-  border-radius: 6px;
-  color: ${DR_TOKENS.accentInk};
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 120ms ease, color 120ms ease;
-}
-.dr-bubble__detail:hover {
-  background: ${DR_TOKENS.borderSoft};
-  color: ${DR_TOKENS.accent};
-}
-.dr-bubble__detail:focus-visible {
-  outline: 2px solid ${DR_TOKENS.accent};
-  outline-offset: 1px;
-}
-
-/* Delete button mirrors the detail-button shape so the saved bubble's
-   action row has a balanced "two icons + Saved chip" layout. Hover
-   uses the destructive red token instead of accent, matching the
-   side-panel delete affordance pattern. */
+/* Delete button: icon-only trash glyph for the saved-word bubble. Hover
+   uses the destructive red token, matching the side-panel delete
+   affordance pattern. */
 .dr-bubble__delete {
   all: unset;
   cursor: pointer;

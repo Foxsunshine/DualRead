@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
 // Bubble + undo-stash + click-translator state-machine tests. Lives in
-// the content folder because the surfaces it exercises (hoverPreview,
-// saved-with-delete, monotonic token, undo stash timing) are coupled
-// across bubble.ts, undoStash.ts, toast.ts, and clickTranslate.ts —
+// the content folder because the surfaces it exercises (unified hover
+// bubble, saved-with-delete, monotonic token, undo stash timing) are
+// coupled across bubble.ts, undoStash.ts, toast.ts, and clickTranslate.ts —
 // covering them as one suite avoids duplicate setup of the chrome.*
 // stubs and DR Shadow DOM scaffolding.
 
@@ -37,8 +37,6 @@ import { DEFAULT_SETTINGS } from "../shared/types";
 
 const STRINGS: BubbleStrings = {
   save: "Save",
-  saved: "Saved",
-  detail: "Detail",
   delete: "Delete",
   close: "Close",
   loading: "Loading…",
@@ -62,7 +60,6 @@ function makeWord(overrides: Partial<VocabWord> = {}): VocabWord {
     word: "serendipity",
     word_key: "serendipity",
     translation: "意外发现",
-    note: "from a friend",
     ctx: "a moment of pure serendipity",
     source_url: "https://example.com",
     created_at: now,
@@ -114,11 +111,6 @@ function installChromeStub(opts: ChromeStubOptions = {}) {
   return { stub, sentMessages };
 }
 
-// Counts hover-preview vs saved-translated nodes inside the bubble's
-// Shadow DOM. Bubble uses a closed shadow root, so we have to walk the
-// host element's children via the unique attribute we set on the
-// host. happy-dom exposes the closed root via `shadowRoot` like jsdom,
-// so we cheat through that.
 function findBubbleHost(): Element | null {
   return document.querySelector("[data-dualread-bubble]");
 }
@@ -183,22 +175,7 @@ describe("bubble state machine", () => {
     document.querySelectorAll("dualread-toast").forEach((n) => n.remove());
   });
 
-  it("renders hoverPreview without action buttons", () => {
-    const b = createBubble();
-    b.show({
-      anchor: ANCHOR,
-      strings: STRINGS,
-      state: { kind: "hoverPreview", word: "serendipity", translation: "意外发现" },
-    });
-    const snap = bubbleSnapshot();
-    expect(snap.hasTranslated).toBe(true);
-    expect(snap.translation).toBe("意外发现");
-    expect(snap.hasDeleteBtn).toBe(false);
-    expect(snap.hasDetailBtn).toBe(false);
-    b.dispose();
-  });
-
-  it("renders translated+saved with delete button when showDeleteButton is on", () => {
+  it("renders saved translated bubble with delete button only (no save, no detail, no note)", () => {
     const b = createBubble();
     b.show({
       anchor: ANCHOR,
@@ -208,15 +185,37 @@ describe("bubble state machine", () => {
         word: "serendipity",
         translation: "意外发现",
         saved: true,
-        showDetailLink: true,
         showDeleteButton: true,
       },
-      onDetail: () => {},
       onDelete: () => {},
     });
     const snap = bubbleSnapshot();
+    expect(snap.hasTranslated).toBe(true);
+    expect(snap.translation).toBe("意外发现");
     expect(snap.hasDeleteBtn).toBe(true);
-    expect(snap.hasDetailBtn).toBe(true);
+    expect(snap.hasDetailBtn).toBe(false);
+    expect(snap.hasSaveBtn).toBe(false);
+    expect(snap.hasNote).toBe(false);
+    b.dispose();
+  });
+
+  it("renders unsaved translated bubble with save button only (no delete)", () => {
+    const b = createBubble();
+    b.show({
+      anchor: ANCHOR,
+      strings: STRINGS,
+      state: {
+        kind: "translated",
+        word: "serendipity",
+        translation: "意外发现",
+        saved: false,
+      },
+      onSave: () => {},
+    });
+    const snap = bubbleSnapshot();
+    expect(snap.hasSaveBtn).toBe(true);
+    expect(snap.hasDeleteBtn).toBe(false);
+    expect(snap.hasDetailBtn).toBe(false);
     b.dispose();
   });
 
@@ -227,7 +226,14 @@ describe("bubble state machine", () => {
     b.show({
       anchor: ANCHOR,
       strings: STRINGS,
-      state: { kind: "hoverPreview", word: "serendipity", translation: "意外发现" },
+      state: {
+        kind: "translated",
+        word: "serendipity",
+        translation: "意外发现",
+        saved: true,
+        showDeleteButton: true,
+      },
+      onDelete: () => {},
       onMouseEnter: onEnter,
       onMouseLeave: onLeave,
     });
@@ -240,14 +246,14 @@ describe("bubble state machine", () => {
     b.dispose();
   });
 
-  it("replaces hoverPreview content with saved-translated on subsequent show()", () => {
+  it("replaces bubble content on subsequent show()", () => {
     const b = createBubble();
     b.show({
       anchor: ANCHOR,
       strings: STRINGS,
-      state: { kind: "hoverPreview", word: "serendipity", translation: "意外发现" },
+      state: { kind: "loading", word: "serendipity" },
     });
-    expect(bubbleSnapshot().hasDeleteBtn).toBe(false);
+    expect(bubbleSnapshot().hasLoading).toBe(true);
 
     b.show({
       anchor: ANCHOR,
@@ -257,13 +263,13 @@ describe("bubble state machine", () => {
         word: "serendipity",
         translation: "意外发现",
         saved: true,
-        showDetailLink: true,
         showDeleteButton: true,
       },
-      onDetail: () => {},
       onDelete: () => {},
     });
-    expect(bubbleSnapshot().hasDeleteBtn).toBe(true);
+    const snap = bubbleSnapshot();
+    expect(snap.hasLoading).toBe(false);
+    expect(snap.hasDeleteBtn).toBe(true);
     b.dispose();
   });
 });
@@ -319,8 +325,8 @@ describe("undo stash", () => {
       const stash = createUndoStash();
       const oldExpire = vi.fn();
       const newExpire = vi.fn();
-      const w1 = makeWord({ word: "v1", note: "old" });
-      const w2 = makeWord({ word: "v2", note: "new" }); // same word_key
+      const w1 = makeWord({ word: "v1" });
+      const w2 = makeWord({ word: "v2" }); // same word_key
       stash.put(w1, 5000, oldExpire);
       vi.advanceTimersByTime(2000);
       stash.put(w2, 5000, newExpire);
@@ -377,16 +383,29 @@ describe("click translator", () => {
     return { ct, bubble, toast, sentMessages, stub };
   }
 
-  it("hover then click promotes the bubble (kind transitions to saved, delete renders)", () => {
+  it("hover renders unified saved bubble with delete affordance", () => {
     const word = makeWord();
     const { ct } = setup(word);
 
     ct.showHover({ anchor: ANCHOR, saved: word });
-    expect(bubbleSnapshot().hasDeleteBtn).toBe(false);
+    const snap = bubbleSnapshot();
+    expect(snap.hasDeleteBtn).toBe(true);
+    expect(snap.hasDetailBtn).toBe(false);
+    expect(snap.translation).toBe(word.translation);
+  });
+
+  it("hover then click both render the same content (delete only)", () => {
+    const word = makeWord();
+    const { ct } = setup(word);
+
+    ct.showHover({ anchor: ANCHOR, saved: word });
+    expect(bubbleSnapshot().hasDeleteBtn).toBe(true);
 
     ct.showSaved({ anchor: ANCHOR, saved: word });
-    expect(bubbleSnapshot().hasDeleteBtn).toBe(true);
-    expect(bubbleSnapshot().hasDetailBtn).toBe(true);
+    const snap = bubbleSnapshot();
+    expect(snap.hasDeleteBtn).toBe(true);
+    expect(snap.hasDetailBtn).toBe(false);
+    expect(snap.hasSaveBtn).toBe(false);
   });
 
   it("hover hide is debounced and cancelled by cursor re-entering bubble", () => {
@@ -480,7 +499,7 @@ describe("click translator", () => {
   it("undo button re-emits SAVE_WORD with the original snapshot", async () => {
     vi.useFakeTimers();
     try {
-      const word = makeWord({ note: "preserved" });
+      const word = makeWord();
       const { ct, toast, sentMessages } = setup(word);
       ct.showSaved({ anchor: ANCHOR, saved: word });
 
@@ -502,7 +521,6 @@ describe("click translator", () => {
       );
       expect(saveMsg).toBeTruthy();
       expect(saveMsg!.word.word_key).toBe(word.word_key);
-      expect(saveMsg!.word.note).toBe("preserved");
       expect(saveMsg!.word.created_at).toBe(word.created_at);
       // Stash cleared; no further SAVE_WORD on TTL expiry.
       const before = sentMessages.length;
@@ -537,7 +555,7 @@ describe("click translator", () => {
 
   it("renders the alreadyInLang notice when the response carries alreadyInLang=true", async () => {
     const { ct, sentMessages } = setup(null, {
-      settings: { translation_direction: { source: "en", target: "ja" } },
+      settings: { ui_language: "ja" },
       translateResult: ({ force }) => ({
         ok: true,
         data: {
@@ -554,14 +572,16 @@ describe("click translator", () => {
     const snap = bubbleSnapshot();
     expect(snap.hasNotice).toBe(true);
     expect(snap.hasTranslated).toBe(false);
-    expect(snap.noticeText).toContain("Japanese");
+    // ui_language === target === "ja", so the notice copy uses the
+    // Japanese template with the Japanese-locale display name 「日本語」.
+    expect(snap.noticeText).toContain("日本語");
 
     // The notice must offer a "translate anyway" button.
     const anywayBtn = bubbleShadow()?.querySelector<HTMLButtonElement>(
       ".dr-bubble__btn--ghost"
     );
     expect(anywayBtn).toBeTruthy();
-    expect(anywayBtn!.textContent).toBe("Translate anyway");
+    expect(anywayBtn!.textContent).toBe("それでも翻訳");
 
     // And exactly one TRANSLATE_REQUEST was issued so far, without force.
     const translateMsgs = sentMessages.filter(
@@ -574,7 +594,7 @@ describe("click translator", () => {
 
   it("translate-anyway re-issues with force=true and lands on translated state", async () => {
     const { ct, sentMessages } = setup(null, {
-      settings: { translation_direction: { source: "en", target: "ja" } },
+      settings: { ui_language: "ja" },
       translateResult: ({ force }) => ({
         ok: true,
         data: {
@@ -624,7 +644,7 @@ describe("click translator", () => {
     });
     let callCount = 0;
     const { ct } = setup(null, {
-      settings: { translation_direction: { source: "en", target: "ja" } },
+      settings: { ui_language: "ja" },
       translateResult: () => {
         callCount += 1;
         if (callCount === 1) return firstResponse;

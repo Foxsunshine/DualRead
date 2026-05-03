@@ -24,12 +24,12 @@ import { bubbleCSS } from "./bubbleStyles";
 
 export type BubbleState =
   | { kind: "loading"; word: string }
-  | { kind: "translated"; word: string; translation: string; saved: boolean; note?: string; showDetailLink?: boolean; showDeleteButton?: boolean }
-  // Read-only hover preview. Triggered by mouseenter on a saved-vocab
-  // highlight; carries the cached zh and optional note. Has no action
-  // buttons — clicking the highlight promotes the bubble to the
-  // full `translated` saved variant via the click pipeline.
-  | { kind: "hoverPreview"; word: string; translation: string; note?: string }
+  // Translated state. Unsaved words show a primary Save button; saved
+  // words swap that for a delete-only affordance. Hover over a saved
+  // highlight and click on a saved highlight both render the saved
+  // variant — same surface, same buttons, only the dismiss timer
+  // differs (orchestrator-side).
+  | { kind: "translated"; word: string; translation: string; saved: boolean; showDeleteButton?: boolean }
   // The selected text was detected to already be in the user's chosen
   // target language, so we suppress the translated panel and offer a
   // dim "translate anyway" override instead. `targetLangName` is the
@@ -53,8 +53,6 @@ export interface BubbleAnchor {
 
 export interface BubbleStrings {
   save: string;
-  saved: string;
-  detail: string;
   delete: string;
   close: string;
   loading: string;
@@ -76,18 +74,17 @@ export interface BubbleShowOptions {
   strings: BubbleStrings;
   onSave?: () => void;
   onClose?: () => void;
-  onDetail?: () => void;
   onDelete?: () => void;
   onRetry?: () => void;
   // Click handler for the "translate anyway" button rendered on the
   // alreadyInLang state. Wired from the orchestrator (clickTranslate)
   // so it can re-issue TRANSLATE_REQUEST with `force: true`.
   onTranslateAnyway?: () => void;
-  // Hover-preview plumbing. Caller passes these so the orchestrator
-  // can cancel a pending mouseleave-hide when the cursor moves from
-  // the highlight word into the bubble itself, or schedule one when
-  // the cursor leaves the bubble. Bubble fires them on its own host
-  // element; orchestrator owns the actual hide timer.
+  // Hover plumbing. Caller passes these so the orchestrator can cancel
+  // a pending mouseleave-hide when the cursor moves from the highlight
+  // word into the bubble itself, or schedule one when the cursor leaves
+  // the bubble. Bubble fires them on its own host element; orchestrator
+  // owns the actual hide timer.
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
@@ -282,27 +279,10 @@ export function createBubble(): BubbleHandle {
 
   function render(opts: BubbleShowOptions): void {
     clearRoot();
-    const { state, strings, onSave, onDetail, onDelete, onRetry, onTranslateAnyway } = opts;
+    const { state, strings, onSave, onDelete, onRetry, onTranslateAnyway } = opts;
 
     // Header row is shared across all states — word + close button.
     renderHeader(state.word, strings.close, () => dismiss());
-
-    if (state.kind === "hoverPreview") {
-      // Lightweight read-only preview — translation + optional note,
-      // no action row. Click on the highlight is what the user uses
-      // to enter the full saved bubble (Save/Delete/Detail surface).
-      const tr = document.createElement("div");
-      tr.className = "dr-bubble__translation";
-      tr.textContent = state.translation;
-      root.appendChild(tr);
-      if (state.note) {
-        const note = document.createElement("div");
-        note.className = "dr-bubble__note";
-        note.textContent = state.note;
-        root.appendChild(note);
-      }
-      return;
-    }
 
     if (state.kind === "loading") {
       const loading = document.createElement("div");
@@ -361,78 +341,43 @@ export function createBubble(): BubbleHandle {
     tr.textContent = state.translation;
     root.appendChild(tr);
 
-    if (state.note) {
-      const note = document.createElement("div");
-      note.className = "dr-bubble__note";
-      note.textContent = state.note;
-      root.appendChild(note);
+    // Saved words show a delete-only affordance; unsaved words show a
+    // primary Save button. The two paths never coexist — save-on-saved
+    // would be a no-op and adds visual noise.
+    if (state.saved) {
+      if (state.showDeleteButton && onDelete) {
+        const actions = document.createElement("div");
+        actions.className = "dr-bubble__actions";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "dr-bubble__delete";
+        del.title = strings.delete;
+        del.setAttribute("aria-label", strings.delete);
+        del.innerHTML =
+          '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ' +
+          'stroke="currentColor" stroke-width="1.4" ' +
+          'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<path d="M3 4.5h10"/>' +
+          '<path d="M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5"/>' +
+          '<path d="M4.5 4.5v8a1.5 1.5 0 0 0 1.5 1.5h4a1.5 1.5 0 0 0 1.5-1.5v-8"/>' +
+          '<path d="M7 7v5"/>' +
+          '<path d="M9 7v5"/>' +
+          "</svg>";
+        del.addEventListener("click", onDelete);
+        actions.appendChild(del);
+        root.appendChild(actions);
+      }
+      return;
     }
 
-    // Actions row: Save (or ✓ Saved) + optional "detail" link for
-    // already-saved words (D42 uses this to jump the side panel to the
-    // vocab tab without leaving the page).
     const actions = document.createElement("div");
     actions.className = "dr-bubble__actions";
-
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "dr-bubble__btn";
-    if (state.saved) {
-      saveBtn.textContent = strings.saved;
-      saveBtn.disabled = true;
-    } else {
-      saveBtn.textContent = strings.save;
-      if (onSave) saveBtn.addEventListener("click", onSave);
-    }
+    saveBtn.textContent = strings.save;
+    if (onSave) saveBtn.addEventListener("click", onSave);
     actions.appendChild(saveBtn);
-
-    if (state.showDetailLink && onDetail) {
-      // Icon-only button (Bucket 1 / v2.0.1): a line-art open book standing in
-      // for the old "打开详情 / View details" text link. Accessible name comes
-      // from `title` + `aria-label` — both set so hover tooltips work on desktop
-      // and assistive tech still gets a label.
-      const detail = document.createElement("button");
-      detail.type = "button";
-      detail.className = "dr-bubble__detail";
-      detail.title = strings.detail;
-      detail.setAttribute("aria-label", strings.detail);
-      detail.innerHTML =
-        '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ' +
-        'stroke="currentColor" stroke-width="1.4" ' +
-        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-        '<path d="M2 3.5h4.5a1.5 1.5 0 0 1 1.5 1.5v7.5"/>' +
-        '<path d="M14 3.5H9.5A1.5 1.5 0 0 0 8 5"/>' +
-        '<path d="M2 3.5v9h5a1 1 0 0 1 1 1"/>' +
-        '<path d="M14 3.5v9H9a1 1 0 0 0-1 1"/>' +
-        "</svg>";
-      detail.addEventListener("click", onDetail);
-      actions.appendChild(detail);
-    }
-
-    if (state.showDeleteButton && onDelete) {
-      // Icon-only trash button. Sits next to the detail icon. Click
-      // is "soft delete" from the user's POV — orchestrator stashes
-      // the record and shows a 5s undo toast before the deletion is
-      // truly visible at storage scope.
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "dr-bubble__delete";
-      del.title = strings.delete;
-      del.setAttribute("aria-label", strings.delete);
-      del.innerHTML =
-        '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ' +
-        'stroke="currentColor" stroke-width="1.4" ' +
-        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-        '<path d="M3 4.5h10"/>' +
-        '<path d="M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5"/>' +
-        '<path d="M4.5 4.5v8a1.5 1.5 0 0 0 1.5 1.5h4a1.5 1.5 0 0 0 1.5-1.5v-8"/>' +
-        '<path d="M7 7v5"/>' +
-        '<path d="M9 7v5"/>' +
-        "</svg>";
-      del.addEventListener("click", onDelete);
-      actions.appendChild(del);
-    }
-
     root.appendChild(actions);
   }
 

@@ -15,14 +15,10 @@ function esc(v: string | number | undefined): string {
 }
 
 export function toCsv(words: VocabWord[]): string {
-  // source_lang / target_lang appended after created_at: keeping the original
-  // six columns in their existing order means user-built Anki templates
-  // continue to address the same column indices.
   const header = [
     "word",
     "translation",
     "context",
-    "note",
     "source_url",
     "created_at",
     "source_lang",
@@ -33,7 +29,6 @@ export function toCsv(words: VocabWord[]): string {
       esc(w.word),
       esc(w.translation),
       esc(w.ctx),
-      esc(w.note),
       esc(w.source_url),
       esc(new Date(w.created_at).toISOString()),
       esc(w.source_lang),

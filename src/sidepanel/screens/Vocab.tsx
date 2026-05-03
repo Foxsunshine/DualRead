@@ -1,14 +1,13 @@
 // Vocab list screen.
 //
-// Owns local UI-only state: search query, sort mode, which row is expanded,
-// and the in-progress note textarea. Persistent state (the words themselves)
-// lives in the parent via useVocab — this component is purely a view over it
-// plus some transient interaction state.
+// Owns local UI-only state: search query, sort mode, which row is expanded.
+// Persistent state (the words themselves) lives in the parent via useVocab —
+// this component is purely a view over it plus some transient interaction
+// state.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Strings } from "../i18n";
 import type { VocabWord } from "../../shared/types";
-import { MetaLabel } from "../components/MetaLabel";
 
 type SortMode = "recent" | "alpha";
 
@@ -22,7 +21,6 @@ interface Props {
   focusedKey?: string | null;
   focusTick?: number;
   onExport: () => void;
-  onSaveNote: (word_key: string, note: string) => void;
   onDelete: (w: VocabWord) => void;
 }
 
@@ -39,14 +37,11 @@ export function Vocab({
   focusedKey,
   focusTick,
   onExport,
-  onSaveNote,
   onDelete,
 }: Props) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [expandedKey, setExpandedKey] = useState<string | null>(focusedKey ?? null);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [draftNote, setDraftNote] = useState("");
 
   // Map word_key → row DOM node so a focus request can scroll the right one
   // into view without traversing the list each time.
@@ -64,8 +59,6 @@ export function Vocab({
   useEffect(() => {
     if (!focusedKey) return;
     setExpandedKey(focusedKey);
-    setEditingKey(null);
-    // Drop the search filter if the targeted word wouldn't be visible under it.
     setQuery((q) => {
       if (!q) return q;
       const word = words.find((w) => w.word_key === focusedKey);
@@ -73,12 +66,9 @@ export function Vocab({
       const needle = q.trim().toLowerCase();
       const hit =
         word.word.toLowerCase().includes(needle) ||
-        word.translation.toLowerCase().includes(needle) ||
-        (word.note ?? "").toLowerCase().includes(needle);
+        word.translation.toLowerCase().includes(needle);
       return hit ? q : "";
     });
-    // Defer the scroll one frame so the row has mounted / re-rendered with
-    // `--focused` styling and its final layout.
     const raf = requestAnimationFrame(() => {
       const el = rowRefs.current.get(focusedKey);
       el?.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -87,9 +77,6 @@ export function Vocab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedKey, focusTick]);
 
-  // Search matches against word, translation, and note — no fuzzy, just
-  // substring. Sort is applied after filtering so a narrow search list still
-  // obeys the user's chosen order.
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = words;
@@ -97,8 +84,7 @@ export function Vocab({
       list = list.filter(
         (w) =>
           w.word.toLowerCase().includes(q) ||
-          w.translation.toLowerCase().includes(q) ||
-          (w.note ?? "").toLowerCase().includes(q)
+          w.translation.toLowerCase().includes(q)
       );
     }
     list = [...list];
@@ -107,24 +93,8 @@ export function Vocab({
     return list;
   }, [words, query, sort]);
 
-  // Only one row expanded at a time — collapsing any other row makes the list
-  // scannable. Collapsing also exits edit mode so a half-typed note doesn't
-  // silently stick around.
   const toggleExpand = (key: string) => {
     setExpandedKey((k) => (k === key ? null : key));
-    setEditingKey(null);
-  };
-
-  const startEdit = (w: VocabWord) => {
-    setEditingKey(w.word_key);
-    setDraftNote(w.note ?? "");
-  };
-
-  // Commit on blur / Cmd+Enter. Always clear editingKey so the textarea
-  // doesn't linger after save.
-  const commitEdit = (w: VocabWord) => {
-    onSaveNote(w.word_key, draftNote);
-    setEditingKey(null);
   };
 
   return (
@@ -182,7 +152,6 @@ export function Vocab({
       <div className="dr-vocab__list">
         {visible.map((w) => {
           const focused = w.word_key === expandedKey;
-          const editing = w.word_key === editingKey;
           const d = daysAgo(w.created_at);
           return (
             <div
@@ -203,32 +172,7 @@ export function Vocab({
               {w.ctx && <div className="dr-vocab-row__ctx">“…{w.ctx}…”</div>}
               {focused && (
                 <div className="dr-vocab-row__expand">
-                  <MetaLabel>{S.noteField}</MetaLabel>
-                  {editing ? (
-                    <textarea
-                      className="dr-vocab-row__note-input"
-                      value={draftNote}
-                      autoFocus
-                      placeholder={S.noteAdd}
-                      onChange={(e) => setDraftNote(e.target.value)}
-                      onBlur={() => commitEdit(w)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commitEdit(w);
-                        if (e.key === "Escape") setEditingKey(null);
-                      }}
-                    />
-                  ) : (
-                    <div
-                      className={`dr-vocab-row__note ${!w.note ? "dr-vocab-row__note--empty" : ""}`}
-                      onClick={() => startEdit(w)}
-                    >
-                      {w.note || S.noteAdd}
-                    </div>
-                  )}
                   <div className="dr-vocab-row__actions">
-                    <button type="button" className="dr-vocab-row__edit" onClick={() => startEdit(w)}>
-                      {S.edit}
-                    </button>
                     <button type="button" className="dr-vocab-row__delete" onClick={() => onDelete(w)}>
                       {S.delete}
                     </button>

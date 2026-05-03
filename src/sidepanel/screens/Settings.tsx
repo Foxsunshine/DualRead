@@ -1,26 +1,8 @@
 import { useState } from "react";
 import type { Strings } from "../i18n";
-import type { HighlightStyle, Lang, Settings as SettingsType, TranslationDirection } from "../../shared/types";
+import type { HighlightStyle, Settings as SettingsType } from "../../shared/types";
 import type { SyncState, SyncStatus } from "../useSyncStatus";
 import { Toggle } from "../components/Toggle";
-import { pickAlternateLang } from "../state";
-
-// Order matters for the dropdown — keep parallel to the language toggle
-// row above so users see the same sequence in both controls.
-const LANG_OPTIONS: Lang[] = ["zh-CN", "en", "ja", "fr"];
-
-function langDisplayName(S: Strings, lang: Lang): string {
-  switch (lang) {
-    case "zh-CN":
-      return S.zh;
-    case "en":
-      return S.en;
-    case "ja":
-      return S.ja;
-    case "fr":
-      return S.fr;
-  }
-}
 
 interface Props {
   S: Strings;
@@ -80,15 +62,6 @@ export function Settings({
           <LangBtn label={S.ja} active={settings.ui_language === "ja"} onClick={() => onChange({ ui_language: "ja" })} />
           <LangBtn label={S.fr} active={settings.ui_language === "fr"} onClick={() => onChange({ ui_language: "fr" })} />
         </div>
-      </div>
-
-      <div className="dr-settings__group">
-        <div className="dr-settings__group-title">{S.directionTitle}</div>
-        <DirectionPicker
-          S={S}
-          direction={settings.translation_direction}
-          onChange={(next) => onChange({ translation_direction: next })}
-        />
       </div>
 
       <div className="dr-settings__group">
@@ -360,80 +333,3 @@ function LangBtn({ label, active, onClick }: { label: string; active: boolean; o
     </button>
   );
 }
-
-interface DirectionPickerProps {
-  S: Strings;
-  direction: TranslationDirection;
-  onChange: (next: TranslationDirection) => void;
-}
-
-// Two-dropdown source → target picker. Same-lang collisions are guarded at
-// commit time: when the user picks an option that would collapse both
-// endpoints, the *other* endpoint slides to the next supported language so
-// the stored direction stays valid. The matching option in the other
-// dropdown is also rendered as `disabled` for clarity even though the
-// commit-time guard means it cannot actually be selected.
-function DirectionPicker({ S, direction, onChange }: DirectionPickerProps) {
-  const handleSourceChange = (next: Lang): void => {
-    if (next === direction.target) {
-      onChange({ source: next, target: pickAlternateLang(next) });
-      return;
-    }
-    onChange({ source: next, target: direction.target });
-  };
-
-  const handleTargetChange = (next: Lang): void => {
-    if (next === direction.source) {
-      onChange({ source: pickAlternateLang(next), target: next });
-      return;
-    }
-    onChange({ source: direction.source, target: next });
-  };
-
-  const same = direction.source === direction.target;
-
-  return (
-    <div className="dr-direction">
-      <div className="dr-direction__row">
-        <label className="dr-direction__field">
-          <span className="dr-direction__field-label">{S.directionFromLabel}</span>
-          <select
-            className="dr-direction__select"
-            value={direction.source}
-            onChange={(e) => handleSourceChange(e.target.value as Lang)}
-          >
-            {LANG_OPTIONS.map((lang) => (
-              <option key={lang} value={lang} disabled={lang === direction.target}>
-                {langDisplayName(S, lang)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span aria-hidden="true" className="dr-direction__arrow">→</span>
-        <label className="dr-direction__field">
-          <span className="dr-direction__field-label">{S.directionToLabel}</span>
-          <select
-            className="dr-direction__select"
-            value={direction.target}
-            onChange={(e) => handleTargetChange(e.target.value as Lang)}
-          >
-            {LANG_OPTIONS.map((lang) => (
-              <option key={lang} value={lang} disabled={lang === direction.source}>
-                {langDisplayName(S, lang)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="dr-direction__caption">
-        {same
-          ? S.directionSameLangHint
-          : S.directionCaption(
-              langDisplayName(S, direction.source),
-              langDisplayName(S, direction.target)
-            )}
-      </div>
-    </div>
-  );
-}
-

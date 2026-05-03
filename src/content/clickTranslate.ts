@@ -149,33 +149,26 @@ export interface ClickTranslatorDeps {
 
 export interface ClickTranslatorHandle {
   dispose(): void;
-  // Saved-word entry point (v1.1 D42 + Phase E). Called by the highlight
-  // engine when the user clicks a `.dr-hl` span. Anchor is a bounding
-  // rect (usually `element.getBoundingClientRect()` converted to our
-  // BubbleAnchor shape). The bubble shows zh + note + "打开详情" link and
-  // no Save button because the word is already saved. On "打开详情" click
-  // the handler sends FOCUS_WORD_IN_VOCAB so the side panel opens/focuses
-  // the word in its Vocab tab.
+  // Saved-word entry point. Called by the highlight engine when the user
+  // clicks a `.dr-hl` span. Renders the unified saved bubble — translation
+  // plus a single delete affordance.
   showSaved(args: { anchor: BubbleAnchor; saved: VocabWord }): void;
-  // Drag-selection entry point (v1.1 post-Phase-H feedback). Called from
-  // content/index.ts after a valid mouseup selection has been snapped to
-  // word boundaries. Runs the same translate + save-check flow as a single
-  // click, but with a pre-computed anchor (the selection's bounding rect)
-  // and text. This makes multi-word phrases surface the same in-page UI
-  // as single-word clicks instead of silently routing to the side panel.
+  // Drag-selection entry point. Called from content/index.ts after a valid
+  // mouseup selection has been snapped to word boundaries. Runs the same
+  // translate + save-check flow as a single click but with a pre-computed
+  // anchor and text.
   showSelection(args: { text: string; anchor: BubbleAnchor; context: string }): void;
-  // Hover-preview entry point. Read-only translation surface for an
-  // already-saved word; the bubble enters its `hoverPreview` state.
-  // Replaces any existing hover preview; a click on the same highlight
-  // promotes the bubble to the full saved variant via showSaved.
+  // Hover entry point. Renders the same surface as showSaved but with a
+  // debounced hide timer so the bubble fades when the cursor leaves both
+  // the highlight and the bubble itself.
   showHover(args: { anchor: BubbleAnchor; saved: VocabWord }): void;
-  // Schedule (debounced) hide of an active hover preview. No-op if the
-  // active flow has been promoted to `click`/`saved` — those flows
-  // own their own dismissal (mousedown-outside / ESC / scroll).
+  // Schedule (debounced) hide of an active hover bubble. No-op once the
+  // surface has been promoted to a click/selection/saved flow — those
+  // flows own their own dismissal (mousedown-outside / ESC / scroll).
   hideHover(): void;
-  // Cancel a pending hover-hide. Called when the cursor moves into the
-  // bubble itself so the user can interact with note text without the
-  // surface vanishing.
+  // Cancel a pending hover-hide. Called when the cursor enters the bubble
+  // itself so the user can reach the delete button without the surface
+  // vanishing under them.
   cancelHoverHide(): void;
 }
 
@@ -228,7 +221,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
 
   async function startFlow(click: CurrentClick): Promise<void> {
     active = click;
-    const direction = getSettings().translation_direction;
+    const target = click.lang;
     const strings = bubbleStrings(click.lang);
     const word_key = click.word.trim().toLowerCase();
 
@@ -248,8 +241,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       sendMessage({
         type: "TRANSLATE_REQUEST",
         text: click.word,
-        target: direction.target,
-        source: direction.source,
+        target,
         requester: "bubble",
         force: click.force ? true : undefined,
       }),
@@ -274,7 +266,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
 
     const data = resp.data as TranslateResult | undefined;
     if (data?.alreadyInLang === true) {
-      renderAlreadyInLang(click, direction.target, strings);
+      renderAlreadyInLang(click, target, strings);
       return;
     }
 
@@ -322,48 +314,48 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
         word: click.word,
         translation,
         saved: saved !== null,
-        note: saved?.note,
         showDeleteButton: saved !== null,
       },
       strings,
       onSave: saved ? undefined : () => void handleSave(click, translation),
-      onDelete: saved
-        ? () => {
-            const snapshot: VocabWord = { ...saved };
-            const tokenAtClick = click.token;
-            if (active?.token === tokenAtClick) active = null;
-            bubble.hide();
-            toast.showDeleted({
-              word: snapshot,
-              strings: toastStrings(click.lang),
-              onUndo: (restored) => void handleUndoRestore(restored),
-            });
-            try {
-              if (!chrome.runtime?.id) return;
-              void sendMessage({ type: "DELETE_WORD", word_key: snapshot.word_key }).catch(() => {
-                /* swallow — see showSaved.onDelete */
-              });
-            } catch {
-              /* context invalidated */
-            }
-          }
-        : undefined,
+      onDelete: saved ? () => deleteSaved(click, saved) : undefined,
       onClose: () => {
         if (active?.token === click.token) active = null;
       },
     });
   }
 
+  // Soft-delete a saved word from the bubble. Hides the bubble, surfaces an
+  // undo toast holding the snapshot, and fires DELETE_WORD on the wire. If
+  // the runtime context is dead the toast still gives the user a
+  // non-destructive escape — the storage write is best-effort.
+  function deleteSaved(click: CurrentClick, saved: VocabWord): void {
+    const snapshot: VocabWord = { ...saved };
+    if (active?.token === click.token) active = null;
+    bubble.hide();
+    toast.showDeleted({
+      word: snapshot,
+      strings: toastStrings(click.lang),
+      onUndo: (restored) => void handleUndoRestore(restored),
+    });
+    try {
+      if (!chrome.runtime?.id) return;
+      void sendMessage({ type: "DELETE_WORD", word_key: snapshot.word_key }).catch(() => {
+        /* swallow — orchestrator's storage listener will reconcile */
+      });
+    } catch {
+      /* context invalidated */
+    }
+  }
+
   async function handleSave(click: CurrentClick, translation: string): Promise<void> {
     const now = Date.now();
     const word_key = click.word.trim().toLowerCase();
-    const direction = getSettings().translation_direction;
     const vw: VocabWord = {
       word: click.word,
       word_key,
       translation,
-      source_lang: direction.source,
-      target_lang: direction.target,
+      target_lang: click.lang,
       ctx: click.context || undefined,
       source_url: location.href,
       created_at: now,
@@ -463,19 +455,20 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
   document.addEventListener("mousedown", onMouseDown);
   document.addEventListener("click", onClick, { capture: true });
 
-  // Saved-word flow (Phase E). Deliberately separate from startFlow: no
-  // TRANSLATE_REQUEST (we already have `zh`), no Save button (word is
-  // already saved), adds the "打开详情" detail link. Reuses the same
-  // monotonic token so a fresh click-to-translate can still race this
-  // out — a later click wins regardless of which flow opened the bubble.
-  function showSaved(args: { anchor: BubbleAnchor; saved: VocabWord }): void {
-    const { anchor, saved } = args;
+  // Build the active CurrentClick record for a saved-word surface and
+  // render the unified bubble. Shared by showSaved (sticky, dismissed via
+  // outside-click / ESC / scroll) and showHover (debounced auto-dismiss
+  // when the cursor leaves both the highlight and the bubble).
+  function renderSavedBubble(
+    args: { anchor: BubbleAnchor; saved: VocabWord; kind: "saved" | "hover" }
+  ): { click: CurrentClick; token: number } {
+    const { anchor, saved, kind } = args;
     const lang = getSettings().ui_language;
     const strings = bubbleStrings(lang);
     const token = ++currentToken;
     const click: CurrentClick = {
       token,
-      kind: "saved",
+      kind,
       word: saved.word || saved.word_key,
       anchor,
       context: saved.ctx ?? "",
@@ -483,8 +476,7 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
       force: false,
     };
     active = click;
-    // A click that promoted the surface to saved supersedes any pending
-    // hover-hide schedule from the same hover the user came in on.
+    // A new bubble supersedes any pending hover-hide schedule.
     clearHoverHideTimer();
 
     bubble.show({
@@ -494,90 +486,30 @@ export function createClickTranslator(deps: ClickTranslatorDeps): ClickTranslato
         word: click.word,
         translation: saved.translation || "—",
         saved: true,
-        note: saved.note,
-        showDetailLink: true,
         showDeleteButton: true,
       },
       strings,
-      onDetail: () => {
-        try {
-          if (!chrome.runtime?.id) return;
-          void sendMessage({
-            type: "FOCUS_WORD_IN_VOCAB",
-            word_key: saved.word_key,
-          });
-        } catch {
-          /* context invalidated between check and send — swallow */
-        }
-        bubble.hide();
-        if (active?.token === token) active = null;
-      },
-      onDelete: () => {
-        // Capture the snapshot BEFORE we hide the bubble — we need
-        // the full VocabWord (note, ctx, created_at, …) intact so the
-        // undo path can re-emit the exact same record.
-        const snapshot: VocabWord = { ...saved };
-        if (active?.token === token) active = null;
-        bubble.hide();
-        // Show the toast first so the user sees the affordance even
-        // if DELETE_WORD takes a beat. Storage commits in parallel.
-        toast.showDeleted({
-          word: snapshot,
-          strings: toastStrings(lang),
-          onUndo: (restored) => void handleUndoRestore(restored),
-        });
-        try {
-          if (!chrome.runtime?.id) return;
-          void sendMessage({ type: "DELETE_WORD", word_key: snapshot.word_key }).catch(() => {
-            /* swallow — orchestrator's storage listener will reconcile */
-          });
-        } catch {
-          /* context invalidated — toast still gives the user a non-destructive escape */
-        }
-      },
+      onDelete: () => deleteSaved(click, saved),
+      onMouseEnter: kind === "hover" ? () => clearHoverHideTimer() : undefined,
+      onMouseLeave: kind === "hover" ? () => hideHover() : undefined,
       onClose: () => {
         if (active?.token === token) active = null;
       },
     });
+
+    return { click, token };
   }
 
-  // Hover preview. No translate round trip — we already have `zh` from
-  // storage. Anchor and word_key share the same race-guard token as the
-  // click flow so a fresh click overrides an in-flight hover seamlessly.
-  function showHover(args: { anchor: BubbleAnchor; saved: VocabWord }): void {
-    const { anchor, saved } = args;
-    const lang = getSettings().ui_language;
-    const strings = bubbleStrings(lang);
-    const token = ++currentToken;
-    const click: CurrentClick = {
-      token,
-      kind: "hover",
-      word: saved.word || saved.word_key,
-      anchor,
-      context: saved.ctx ?? "",
-      lang,
-      force: false,
-    };
-    active = click;
-    // Cursor re-entered a highlight; cancel any pending hide from the
-    // previous leave-bubble or leave-highlight transition.
-    clearHoverHideTimer();
+  // Saved-word click entry point. The bubble stays put until the user
+  // dismisses it via outside-click / ESC / scroll.
+  function showSaved(args: { anchor: BubbleAnchor; saved: VocabWord }): void {
+    renderSavedBubble({ ...args, kind: "saved" });
+  }
 
-    bubble.show({
-      anchor,
-      state: {
-        kind: "hoverPreview",
-        word: click.word,
-        translation: saved.translation || "—",
-        note: saved.note,
-      },
-      strings,
-      onMouseEnter: () => clearHoverHideTimer(),
-      onMouseLeave: () => hideHover(),
-      onClose: () => {
-        if (active?.token === token) active = null;
-      },
-    });
+  // Hover entry point. Same surface as showSaved; orchestrator's
+  // hideHover / cancelHoverHide manage the debounced auto-dismiss timer.
+  function showHover(args: { anchor: BubbleAnchor; saved: VocabWord }): void {
+    renderSavedBubble({ ...args, kind: "hover" });
   }
 
   function hideHover(): void {

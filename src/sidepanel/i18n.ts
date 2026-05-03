@@ -24,7 +24,6 @@ interface Strings {
   sourceLabel: string;
   saveBtn: string;
   savedBtn: string;
-  addNote: string;
   translatingLabel: string;
   poweredBy: string;
   translateErrorRateLimit: string;
@@ -37,9 +36,6 @@ interface Strings {
   sortAlpha: string;
   export: string;
   delete: string;
-  edit: string;
-  noteField: string;
-  noteAdd: string;
   wordsCount: (n: number) => string;
   quotaNear: string;
   quotaBody: string;
@@ -53,15 +49,6 @@ interface Strings {
   en: string;
   ja: string;
   fr: string;
-  // Translation-direction picker (Settings §5). Title sits above two
-  // language dropdowns separated by an arrow; the caption is a function so
-  // each UI language can pick its own clause order around the source/target
-  // display names.
-  directionTitle: string;
-  directionFromLabel: string;
-  directionToLabel: string;
-  directionCaption: (source: string, target: string) => string;
-  directionSameLangHint: string;
   syncStatus: string;
   synced: string;
   syncing: string;
@@ -117,7 +104,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sourceLabel: "来源",
     saveBtn: "保存到生词本",
     savedBtn: "已保存",
-    addNote: "添加笔记",
     translatingLabel: "翻译中…",
     poweredBy: "Google 翻译",
     translateErrorRateLimit: "翻译服务暂时被限流了，过一小会儿再试试。",
@@ -130,9 +116,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "导出 CSV",
     delete: "删除",
-    edit: "编辑",
-    noteField: "笔记",
-    noteAdd: "添加笔记…",
     wordsCount: (n) => `${n} 个词`,
     quotaNear: "快到 500 词上限了",
     quotaBody: "导出一份 CSV 备份，并归档已熟悉的词。",
@@ -146,12 +129,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
-    directionTitle: "翻译方向",
-    directionFromLabel: "源语言",
-    directionToLabel: "目标语言",
-    directionCaption: (source, target) =>
-      `划词翻译会从 ${source} 翻到 ${target}。识别为 ${target} 的文本会跳过翻译。`,
-    directionSameLangHint: "请选择两种不同的语言。",
     syncStatus: "同步状态",
     synced: "已同步",
     syncing: "正在同步…",
@@ -196,7 +173,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sourceLabel: "Source",
     saveBtn: "Save to vocab",
     savedBtn: "Saved",
-    addNote: "Add note",
     translatingLabel: "Translating…",
     poweredBy: "Google Translate",
     translateErrorRateLimit: "Translation service is rate-limited. Try again in a moment.",
@@ -209,9 +185,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "Export CSV",
     delete: "Delete",
-    edit: "Edit",
-    noteField: "Note",
-    noteAdd: "Add a note…",
     wordsCount: (n) => `${n} word${n === 1 ? "" : "s"}`,
     quotaNear: "Approaching the 500-word limit",
     quotaBody: "Export a CSV backup and archive the words you've learned.",
@@ -225,12 +198,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
-    directionTitle: "Translation direction",
-    directionFromLabel: "From",
-    directionToLabel: "To",
-    directionCaption: (source, target) =>
-      `Selection translation goes from ${source} to ${target}. Text already detected as ${target} will be skipped.`,
-    directionSameLangHint: "Pick two different languages.",
     syncStatus: "Sync status",
     synced: "Synced",
     syncing: "Syncing…",
@@ -275,7 +242,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sourceLabel: "出典",
     saveBtn: "単語帳に保存",
     savedBtn: "保存済み",
-    addNote: "メモを追加",
     translatingLabel: "翻訳中…",
     poweredBy: "Google 翻訳",
     translateErrorRateLimit: "翻訳サービスが一時的に制限されています。少し時間をおいて再試行してください。",
@@ -288,9 +254,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "CSV をエクスポート",
     delete: "削除",
-    edit: "編集",
-    noteField: "メモ",
-    noteAdd: "メモを追加…",
     wordsCount: (n) => `${n} 語`,
     quotaNear: "500 語の上限に近づいています",
     quotaBody: "CSV バックアップを書き出し、覚えた単語を整理しましょう。",
@@ -304,12 +267,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
-    directionTitle: "翻訳方向",
-    directionFromLabel: "翻訳元",
-    directionToLabel: "翻訳先",
-    directionCaption: (source, target) =>
-      `選択範囲を ${source} から ${target} に翻訳します。${target} と判定されたテキストは翻訳をスキップします。`,
-    directionSameLangHint: "異なる 2 つの言語を選択してください。",
     syncStatus: "同期ステータス",
     synced: "同期済み",
     syncing: "同期中…",
@@ -354,7 +311,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sourceLabel: "Source",
     saveBtn: "Enregistrer au vocabulaire",
     savedBtn: "Enregistré",
-    addNote: "Ajouter une note",
     translatingLabel: "Traduction en cours…",
     poweredBy: "Google Traduction",
     translateErrorRateLimit: "Le service de traduction est temporairement limité. Réessayez dans un instant.",
@@ -367,9 +323,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "Exporter en CSV",
     delete: "Supprimer",
-    edit: "Modifier",
-    noteField: "Note",
-    noteAdd: "Ajouter une note…",
     wordsCount: (n) => `${n} mot${n === 1 ? "" : "s"}`,
     quotaNear: "Vous approchez de la limite de 500 mots",
     quotaBody: "Exportez une sauvegarde CSV et archivez les mots que vous maîtrisez.",
@@ -383,12 +336,6 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     en: "English",
     ja: "日本語",
     fr: "Français",
-    directionTitle: "Sens de traduction",
-    directionFromLabel: "De",
-    directionToLabel: "Vers",
-    directionCaption: (source, target) =>
-      `La sélection est traduite du ${source} vers le ${target}. Les textes détectés comme étant en ${target} ne sont pas traduits.`,
-    directionSameLangHint: "Choisissez deux langues différentes.",
     syncStatus: "État de la synchronisation",
     synced: "Synchronisé",
     syncing: "Synchronisation…",

@@ -72,8 +72,6 @@ export function bubbleStrings(lang: Lang): BubbleStrings {
     case "zh-CN":
       return {
         save: "保存",
-        saved: "已保存",
-        detail: "打开详情",
         delete: "删除",
         close: "关闭",
         loading: "翻译中…",
@@ -84,8 +82,6 @@ export function bubbleStrings(lang: Lang): BubbleStrings {
     case "ja":
       return {
         save: "保存",
-        saved: "保存済み",
-        detail: "詳細を開く",
         delete: "削除",
         close: "閉じる",
         loading: "翻訳中…",
@@ -96,8 +92,6 @@ export function bubbleStrings(lang: Lang): BubbleStrings {
     case "fr":
       return {
         save: "Enregistrer",
-        saved: "Enregistré",
-        detail: "Voir les détails",
         delete: "Supprimer",
         close: "Fermer",
         loading: "Traduction…",
@@ -109,8 +103,6 @@ export function bubbleStrings(lang: Lang): BubbleStrings {
     default:
       return {
         save: "Save",
-        saved: "Saved",
-        detail: "View details",
         delete: "Delete",
         close: "Close",
         loading: "Translating…",

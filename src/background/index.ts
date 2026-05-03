@@ -18,7 +18,7 @@ import {
   SESSION_KEY_PENDING_FOCUS,
 } from "../shared/messages";
 import { DEFAULT_SETTINGS } from "../shared/types";
-import type { Lang, SelectionPayload, Settings, TranslationDirection, VocabWord } from "../shared/types";
+import type { Lang, SelectionPayload, Settings, VocabWord } from "../shared/types";
 import { clearVocab, deleteWord, flushPending, getVocab, saveWord } from "./vocab";
 import { handleTranslate } from "./translate";
 import { runMigration } from "./migrate";
@@ -43,24 +43,13 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (!settings) {
     // Fresh install path: seed defaults and pick the UI language from the
     // browser locale so first-run users land on a panel that already speaks
-    // their language. The default translation target follows the detected
-    // language too — Japanese-locale users get ja as both UI and translation
-    // target without a second trip through Settings — except when the locale
-    // is English, where keeping source=en would collapse with target=en;
-    // there we fall back to zh-CN as the most common Chinese-speaker target.
+    // their language. Translation target follows ui_language directly, so
+    // a Japanese-locale user gets ja as both UI and translation target
+    // without a second trip through Settings.
     const installLang = detectInstallLang(navigator.language);
-    // English-locale users keep DEFAULT_SETTINGS' en→zh-CN direction (the
-    // most common workflow: English-speakers translating into Chinese, and
-    // also the v1 default). Non-English locales pin target to the install
-    // lang and keep source as English.
-    const direction =
-      installLang === "en"
-        ? DEFAULT_SETTINGS.translation_direction
-        : { source: "en" as Lang, target: installLang };
     const seeded: Settings = {
       ...DEFAULT_SETTINGS,
       ui_language: installLang,
-      translation_direction: direction,
     };
     await chrome.storage.local.set({ settings: seeded });
   }
@@ -106,15 +95,13 @@ chrome.runtime.onSuspend.addListener(() => {
 // Translation moved to ./translate.ts in v1.1 Phase A. The router below
 // just dispatches TRANSLATE_REQUEST → handleTranslate.
 
-// Reads the persisted translation direction from chrome.storage.local. The
-// background does not maintain its own in-memory copy of Settings (the SW
-// is evicted between requests anyway) so every translation pulls a fresh
-// snapshot. Defaults are merged so a missing/legacy record still resolves
-// to a valid pair instead of throwing.
-async function readDirection(): Promise<TranslationDirection> {
+// Reads the persisted UI language from chrome.storage.local. Translation
+// target follows ui_language directly, so the background uses the same
+// value as the side panel and content script. Defaults are merged so a
+// missing/legacy record still resolves cleanly.
+async function readTargetLang(): Promise<Lang> {
   const { settings } = await chrome.storage.local.get("settings");
-  const dir = (settings as Partial<Settings> | undefined)?.translation_direction;
-  return dir ?? DEFAULT_SETTINGS.translation_direction;
+  return (settings as Partial<Settings> | undefined)?.ui_language ?? DEFAULT_SETTINGS.ui_language;
 }
 
 // ───── Selection relay ───────────────────────────────────────
@@ -184,12 +171,14 @@ chrome.runtime.onMessage.addListener(
   (msg: Message, sender, sendResponse: (r: MessageResponse) => void) => {
     switch (msg.type) {
       case "TRANSLATE_REQUEST":
-        // Caller-supplied target wins; otherwise pull the persisted direction
-        // so the bubble and side panel always agree with Settings even when
-        // a stale caller forgot to forward it. `force` is forwarded
-        // verbatim — undefined means "honour alreadyInLang detection".
+        // Caller-supplied target wins; otherwise pull the persisted UI
+        // language so the bubble and side panel always agree with Settings
+        // even when a stale caller forgot to forward it. `source` defaults
+        // to "auto" — Google Translate detects the input language. `force`
+        // is forwarded verbatim — undefined means "honour alreadyInLang
+        // detection".
         (async () => {
-          const target = msg.target ?? (await readDirection()).target;
+          const target = msg.target ?? (await readTargetLang());
           const source = msg.source ?? "auto";
           const force = msg.force === true;
           const resp = await handleTranslate(msg.text, target, source, force);

@@ -250,11 +250,12 @@ async function handleHighlightClick(
   }
 }
 
-// Hover-preview entry. Reads the saved record then opens a read-only
-// hoverPreview bubble. Skipped while learning mode is paused — the
-// content script should look fully dormant in that state. If the
-// storage read finishes after a click already promoted the surface,
-// the click translator's monotonic token guard drops the stale read.
+// Hover entry. Reads the saved record then opens the unified saved
+// bubble with a debounced hide timer. Skipped while learning mode is
+// paused — the content script should look fully dormant in that state.
+// If the storage read finishes after a click already promoted the
+// surface, the click translator's monotonic token guard drops the stale
+// read.
 async function handleHighlightHoverEnter(
   word_key: string,
   element: HTMLElement

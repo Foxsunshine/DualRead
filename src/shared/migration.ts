@@ -20,7 +20,6 @@ interface LegacyVocabRecord {
   en?: unknown;
   ctx?: unknown;
   source_url?: unknown;
-  note?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
   translation?: unknown;
@@ -66,7 +65,6 @@ export function migrateRecord(
       target_lang: asLang(r.target_lang),
       ctx: isString(r.ctx) ? r.ctx : undefined,
       source_url: isString(r.source_url) ? r.source_url : undefined,
-      note: isString(r.note) ? r.note : undefined,
       created_at: r.created_at,
       updated_at: r.updated_at,
       schema_version: CURRENT_SCHEMA_VERSION,
@@ -88,7 +86,6 @@ export function migrateRecord(
     translation: r.zh,
     ctx: isString(r.ctx) ? r.ctx : undefined,
     source_url: isString(r.source_url) ? r.source_url : undefined,
-    note: isString(r.note) ? r.note : undefined,
     created_at: r.created_at,
     updated_at: r.updated_at,
     schema_version: CURRENT_SCHEMA_VERSION,

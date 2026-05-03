@@ -8,6 +8,14 @@
 // A monotonic token guards against out-of-order TRANSLATE responses: if the
 // user selects A → B in quick succession, the late A response must not
 // overwrite B's state.
+//
+// The hook exposes a separate `epoch` counter that increments only on a new
+// selection event (initial session restore or SHOW_SELECTION message). It
+// stays flat when the target language changes and triggers a retranslation
+// of the cached selection. Consumers that want to react to "the user picked
+// a new word" (e.g. switching screens) should depend on `epoch`, not
+// `data` — the latter changes on every retranslation, which would surface
+// settings changes as if they were new lookups.
 
 import { useEffect, useState } from "react";
 import { SESSION_KEY_LATEST_SELECTION, sendMessage } from "../shared/messages";
@@ -21,6 +29,7 @@ interface State {
   data: TranslateData | null;
   loading: boolean;
   error: TranslateErrorCode | null;
+  epoch: number;
 }
 
 // Background emits coded strings ("rate_limit" | "network" | `http_<n>` | "parse").
@@ -53,8 +62,8 @@ function splitContext(ctx: string, needle: string): { before: string; after: str
   return { before: ctx.slice(0, i), after: ctx.slice(i + needle.length), found: true };
 }
 
-export function useSelection(target: Lang = "zh-CN", source: Lang = "en") {
-  const [state, setState] = useState<State>({ data: null, loading: false, error: null });
+export function useSelection(target: Lang) {
+  const [state, setState] = useState<State>({ data: null, loading: false, error: null, epoch: 0 });
 
   useEffect(() => {
     let cancelled = false;
@@ -80,28 +89,33 @@ export function useSelection(target: Lang = "zh-CN", source: Lang = "en") {
         sourceUrl: payload.source_url,
         contextSentence: payload.context_sentence,
       };
-      setState({ data: placeholder, loading: true, error: null });
+      setState((prev) => ({ data: placeholder, loading: true, error: null, epoch: prev.epoch + 1 }));
 
       const resp = await sendMessage({
         type: "TRANSLATE_REQUEST",
         text: payload.text,
         target,
-        source,
         requester: "sidepanel",
       });
       if (cancelled || my !== token) return;
 
       if (resp.ok) {
         const r = resp.data as TranslateResult;
-        setState({
+        setState((prev) => ({
           data: { ...placeholder, translation: r.translated || "—" },
           loading: false,
           error: null,
-        });
+          epoch: prev.epoch,
+        }));
       } else {
         // Keep the placeholder (word + context) visible so the user still
         // has something useful; the panel maps `error` to an i18n string.
-        setState({ data: placeholder, loading: false, error: classifyError(resp.error) });
+        setState((prev) => ({
+          data: placeholder,
+          loading: false,
+          error: classifyError(resp.error),
+          epoch: prev.epoch,
+        }));
       }
     };
 
@@ -130,7 +144,7 @@ export function useSelection(target: Lang = "zh-CN", source: Lang = "en") {
       cancelled = true;
       chrome.runtime.onMessage.removeListener(listener);
     };
-  }, [target, source]);
+  }, [target]);
 
   return state;
 }
