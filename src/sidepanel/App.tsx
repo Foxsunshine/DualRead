@@ -29,6 +29,7 @@ import { useVocab, wordKeyOf } from "./useVocab";
 import { useFocusWord } from "./useFocusWord";
 import { useSyncStatus } from "./useSyncStatus";
 import { exportVocabCsv } from "./exportCsv";
+import { ImportDialog } from "./components/ImportDialog";
 import type { Strings } from "./i18n";
 
 // Renders whatever should appear in the "translation" slot: loading placeholder,
@@ -57,6 +58,7 @@ function formatSyncedAt(ts: number | null): string {
 export function App() {
   const { settings, loaded, update } = useSettings();
   const [screen, setScreen] = useState<Screen | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const vocab = useVocab();
   const selection = useSelection(settings.ui_language);
   const focus = useFocusWord();
@@ -198,7 +200,7 @@ export function App() {
           />
         );
       case "vocab-empty":
-        return <VocabEmpty S={S} />;
+        return <VocabEmpty S={S} onImport={() => setImportOpen(true)} />;
       case "vocab":
         return (
           <Vocab
@@ -208,6 +210,7 @@ export function App() {
             focusedKey={focus.focusedKey}
             focusTick={focus.focusTick}
             onExport={() => void handleExport()}
+            onImport={() => setImportOpen(true)}
             onDelete={(w) => void vocab.remove(w.word_key)}
           />
         );
@@ -237,6 +240,20 @@ export function App() {
         <PanelHeader S={S} activeTab={activeTab} onTabChange={handleTabChange} />
       )}
       {activeScreen === "welcome" ? content : <main className="dr-main">{content}</main>}
+      {importOpen && (
+        <ImportDialog
+          S={S}
+          uiLanguage={settings.ui_language}
+          existing={vocab.words}
+          onClose={() => {
+            setImportOpen(false);
+            // After a successful import the user lands on a populated list,
+            // so the empty-state screen should yield to the populated one.
+            if (vocab.words.length > 0) setScreen("vocab");
+          }}
+          onImport={(rows) => vocab.importMany(rows)}
+        />
+      )}
     </div>
   );
 }

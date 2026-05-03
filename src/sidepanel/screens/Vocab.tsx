@@ -21,6 +21,7 @@ interface Props {
   focusedKey?: string | null;
   focusTick?: number;
   onExport: () => void;
+  onImport: () => void;
   onDelete: (w: VocabWord) => void;
 }
 
@@ -37,6 +38,7 @@ export function Vocab({
   focusedKey,
   focusTick,
   onExport,
+  onImport,
   onDelete,
 }: Props) {
   const [query, setQuery] = useState("");
@@ -125,6 +127,12 @@ export function Vocab({
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <path d="M2 4l3 3 3-3" />
             </svg>
+          </button>
+          <button type="button" className="dr-vocab__import" onClick={onImport}>
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M5.5 9V2M3 5l2.5-2.5L8 5M1 10h9" />
+            </svg>
+            <span>{S.importBtn}</span>
           </button>
           <button type="button" className="dr-vocab__export" onClick={onExport}>
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">

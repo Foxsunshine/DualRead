@@ -36,6 +36,22 @@ interface Strings {
   sortAlpha: string;
   export: string;
   delete: string;
+  // Bulk-import dialog (Vocab toolbar). The dialog accepts a paste of
+  // CSV/TSV lines or a .csv / .txt upload, parses to VocabWord rows, and
+  // appends them via IMPORT_WORDS. Existing words are upserted (translation
+  // refreshed, original created_at preserved).
+  importBtn: string;
+  importDialogTitle: string;
+  importPasteHint: string;
+  importPickFile: string;
+  importEmpty: string;
+  importPreview: (added: number, updated: number, invalid: number) => string;
+  importInvalidLine: (line: number) => string;
+  importQuotaWarn: (total: number) => string;
+  importCancel: string;
+  importConfirm: string;
+  importRunning: string;
+  importDone: (added: number, updated: number, skipped: number) => string;
   wordsCount: (n: number) => string;
   quotaNear: string;
   quotaBody: string;
@@ -116,6 +132,20 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "导出 CSV",
     delete: "删除",
+    importBtn: "导入",
+    importDialogTitle: "批量导入生词",
+    importPasteHint: "每行一个词条，支持 CSV 或制表符分隔：单词,翻译[,上下文]。也可上传之前导出的 CSV。",
+    importPickFile: "选择文件…",
+    importEmpty: "粘贴或上传后这里会显示预览。",
+    importPreview: (added, updated, invalid) =>
+      `${added} 新增 · ${updated} 覆盖 · ${invalid} 跳过`,
+    importInvalidLine: (line) => `第 ${line} 行`,
+    importQuotaWarn: (total) => `导入后将达 ${total} 个词，接近 500 上限。`,
+    importCancel: "取消",
+    importConfirm: "导入",
+    importRunning: "导入中…",
+    importDone: (added, updated, skipped) =>
+      `已导入 ${added} 新词、${updated} 覆盖${skipped > 0 ? `，跳过 ${skipped}` : ""}。`,
     wordsCount: (n) => `${n} 个词`,
     quotaNear: "快到 500 词上限了",
     quotaBody: "导出一份 CSV 备份，并归档已熟悉的词。",
@@ -185,6 +215,22 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "Export CSV",
     delete: "Delete",
+    importBtn: "Import",
+    importDialogTitle: "Bulk import vocab",
+    importPasteHint:
+      "One entry per line. CSV or tab-separated: word,translation[,context]. You can also upload a previously exported CSV.",
+    importPickFile: "Choose file…",
+    importEmpty: "Paste or upload to see a preview.",
+    importPreview: (added, updated, invalid) =>
+      `${added} new · ${updated} overwrite · ${invalid} skipped`,
+    importInvalidLine: (line) => `line ${line}`,
+    importQuotaWarn: (total) =>
+      `Import would reach ${total} words — close to the 500-word limit.`,
+    importCancel: "Cancel",
+    importConfirm: "Import",
+    importRunning: "Importing…",
+    importDone: (added, updated, skipped) =>
+      `Imported ${added} new, ${updated} overwritten${skipped > 0 ? `, ${skipped} skipped` : ""}.`,
     wordsCount: (n) => `${n} word${n === 1 ? "" : "s"}`,
     quotaNear: "Approaching the 500-word limit",
     quotaBody: "Export a CSV backup and archive the words you've learned.",
@@ -254,6 +300,21 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "CSV をエクスポート",
     delete: "削除",
+    importBtn: "インポート",
+    importDialogTitle: "単語を一括インポート",
+    importPasteHint:
+      "1 行 1 件。CSV またはタブ区切り：単語,訳[,文脈]。エクスポート済みの CSV をアップロードすることもできます。",
+    importPickFile: "ファイルを選択…",
+    importEmpty: "貼り付けまたはアップロードするとプレビューが表示されます。",
+    importPreview: (added, updated, invalid) =>
+      `${added} 新規 · ${updated} 上書き · ${invalid} 除外`,
+    importInvalidLine: (line) => `${line} 行目`,
+    importQuotaWarn: (total) => `インポート後 ${total} 語に達します（上限 500 語に接近）。`,
+    importCancel: "キャンセル",
+    importConfirm: "インポート",
+    importRunning: "インポート中…",
+    importDone: (added, updated, skipped) =>
+      `${added} 件追加、${updated} 件上書き${skipped > 0 ? `、${skipped} 件スキップ` : ""}。`,
     wordsCount: (n) => `${n} 語`,
     quotaNear: "500 語の上限に近づいています",
     quotaBody: "CSV バックアップを書き出し、覚えた単語を整理しましょう。",
@@ -323,6 +384,22 @@ export const DR_STRINGS: Record<Lang, Strings> = {
     sortAlpha: "A → Z",
     export: "Exporter en CSV",
     delete: "Supprimer",
+    importBtn: "Importer",
+    importDialogTitle: "Importer un lot de mots",
+    importPasteHint:
+      "Une entrée par ligne. CSV ou séparé par tabulation : mot,traduction[,contexte]. Vous pouvez aussi téléverser un CSV exporté précédemment.",
+    importPickFile: "Choisir un fichier…",
+    importEmpty: "Collez ou téléversez pour voir un aperçu.",
+    importPreview: (added, updated, invalid) =>
+      `${added} nouveaux · ${updated} écrasés · ${invalid} ignorés`,
+    importInvalidLine: (line) => `ligne ${line}`,
+    importQuotaWarn: (total) =>
+      `L'import atteindrait ${total} mots — proche de la limite de 500.`,
+    importCancel: "Annuler",
+    importConfirm: "Importer",
+    importRunning: "Import en cours…",
+    importDone: (added, updated, skipped) =>
+      `${added} ajoutés, ${updated} écrasés${skipped > 0 ? `, ${skipped} ignorés` : ""}.`,
     wordsCount: (n) => `${n} mot${n === 1 ? "" : "s"}`,
     quotaNear: "Vous approchez de la limite de 500 mots",
     quotaBody: "Exportez une sauvegarde CSV et archivez les mots que vous maîtrisez.",

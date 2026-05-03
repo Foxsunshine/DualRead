@@ -38,10 +38,22 @@ export type Message =
   | { type: "DELETE_WORD"; word_key: string }
   | { type: "GET_VOCAB" }
   | { type: "CLEAR_DATA" }
+  // Bulk insert of pre-parsed VocabWord rows. The background loops
+  // saveWord(); the write buffer dedups by word_key and the 100 ms debounce
+  // collapses the burst into one chrome.storage.sync.set + one
+  // VOCAB_UPDATED. Response data is an ImportResult: counts of brand-new
+  // words, upserts, and rows the background itself rejected (oversize).
+  | { type: "IMPORT_WORDS"; words: VocabWord[] }
   | { type: "VOCAB_UPDATED" };
 
+export interface ImportResult {
+  added: number;
+  updated: number;
+  skipped: number;
+}
+
 export type MessageResponse =
-  | { ok: true; data?: TranslateResult | VocabWord[] | null | unknown }
+  | { ok: true; data?: TranslateResult | VocabWord[] | ImportResult | null | unknown }
   | { ok: false; error: string };
 
 export function sendMessage<T extends Message>(msg: T): Promise<MessageResponse> {

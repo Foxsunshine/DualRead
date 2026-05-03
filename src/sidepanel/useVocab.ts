@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { sendMessage, SYNC_VALUE_MAX_BYTES } from "../shared/messages";
-import type { Message } from "../shared/messages";
+import type { ImportResult, Message } from "../shared/messages";
 import { estimateRecordBytes } from "../shared/migration";
 import type { VocabWord } from "../shared/types";
 
@@ -58,6 +58,42 @@ export function useVocab() {
     await sendMessage({ type: "SAVE_WORD", word });
   }, []);
 
+  // Bulk import: merge new rows into local state in one setWords pass —
+  // calling save() in a loop would trigger N React renders for an N-row
+  // import. Sends IMPORT_WORDS, which the background fans out to saveWord
+  // so the write buffer can coalesce the burst into one sync.set. The
+  // returned counts come from the background's pre-import snapshot and
+  // feed the dialog's success summary.
+  const importMany = useCallback(
+    async (rows: VocabWord[]): Promise<ImportResult> => {
+      if (rows.length === 0) return { added: 0, updated: 0, skipped: 0 };
+      setWords((prev) => {
+        const byKey = new Map<string, VocabWord>();
+        for (const w of prev) byKey.set(w.word_key, w);
+        for (const w of rows) {
+          const prior = byKey.get(w.word_key);
+          // Mirror the background's upsert: preserve the original
+          // created_at so the list ordering and the "today / Xd" badge
+          // don't jump for already-saved words.
+          byKey.set(w.word_key, {
+            ...w,
+            created_at: prior?.created_at ?? w.created_at,
+          });
+        }
+        return Array.from(byKey.values()).sort(
+          (a, b) => b.created_at - a.created_at
+        );
+      });
+      const resp = await sendMessage({ type: "IMPORT_WORDS", words: rows });
+      if (!resp.ok) {
+        throw new Error(resp.error);
+      }
+      const data = resp.data as ImportResult | null | undefined;
+      return data ?? { added: 0, updated: 0, skipped: 0 };
+    },
+    []
+  );
+
   const remove = useCallback(async (word_key: string) => {
     setWords((prev) => prev.filter((w) => w.word_key !== word_key));
     await sendMessage({ type: "DELETE_WORD", word_key });
@@ -71,7 +107,7 @@ export function useVocab() {
     await sendMessage({ type: "CLEAR_DATA" });
   }, []);
 
-  return { words, save, remove, clear };
+  return { words, save, importMany, remove, clear };
 }
 
 // Canonical dedup key: trimmed + lowercased. Must match the algorithm used

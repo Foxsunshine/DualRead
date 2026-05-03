@@ -219,6 +219,42 @@ chrome.runtime.onMessage.addListener(
         );
         return true;
 
+      case "IMPORT_WORDS":
+        // Bulk insert. Counts are computed against the pre-import snapshot so
+        // brand-new vs upserted is reported back to the dialog. The write
+        // buffer collapses the burst into one chrome.storage.sync.set; the
+        // SYNC_VALUE_MAX_BYTES guard already ran in the side panel parser,
+        // so any flush-time oversize would be a bug, not user input.
+        respondWith(
+          (async () => {
+            await migrationReady;
+            const before = await getVocab();
+            const existing = new Set(before.map((w) => w.word_key));
+            let added = 0;
+            let updated = 0;
+            for (const word of msg.words) {
+              if (existing.has(word.word_key)) {
+                // Preserve original created_at for upserts so the list's
+                // "today / Xd" badge stays anchored to the first save.
+                const prior = before.find((w) => w.word_key === word.word_key);
+                const merged: VocabWord = {
+                  ...word,
+                  created_at: prior?.created_at ?? word.created_at,
+                };
+                await saveWord(merged);
+                updated += 1;
+              } else {
+                await saveWord(word);
+                existing.add(word.word_key);
+                added += 1;
+              }
+            }
+            return { added, updated, skipped: 0 };
+          })(),
+          sendResponse
+        );
+        return true;
+
       case "DELETE_WORD":
         respondWith(
           (async () => {

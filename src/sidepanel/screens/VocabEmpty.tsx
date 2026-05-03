@@ -1,6 +1,11 @@
 import type { Strings } from "../i18n";
 
-export function VocabEmpty({ S }: { S: Strings }) {
+interface Props {
+  S: Strings;
+  onImport?: () => void;
+}
+
+export function VocabEmpty({ S, onImport }: Props) {
   return (
     <section className="dr-screen dr-vocab-empty">
       <div className="dr-vocab-empty__card">
@@ -10,6 +15,15 @@ export function VocabEmpty({ S }: { S: Strings }) {
       </div>
       <div className="dr-vocab-empty__title">{S.vocabEmpty}</div>
       <div className="dr-vocab-empty__body">{S.vocabEmptyBody}</div>
+      {onImport && (
+        <button
+          type="button"
+          className="dr-vocab-empty__import"
+          onClick={onImport}
+        >
+          {S.importBtn}
+        </button>
+      )}
     </section>
   );
 }
